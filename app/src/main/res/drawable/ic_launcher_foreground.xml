@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Double-diamond mark, matching the Home screen logo (HomeScreen.kt
+         BatikLogoMark) — kept within the ~66dp adaptive-icon safe zone so it
+         isn't clipped by circular/squircle launcher masks. -->
+    <path
+        android:fillColor="#C08A28"
+        android:fillType="evenOdd"
+        android:pathData="M54,24 L84,54 L54,84 L24,54 Z M54,40 L68,54 L54,68 L40,54 Z" />
+</vector>
