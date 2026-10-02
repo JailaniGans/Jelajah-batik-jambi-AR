@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.jelajahbatikjambi.ar.Pose
 import com.jelajahbatikjambi.ar.Quaternion
 import com.jelajahbatikjambi.ar.Vector3
+import com.jelajahbatikjambi.render.NativeSupport
 import com.jelajahbatikjambi.render.RenderLifecycle
 
 private const val TAG = "FILAMENT"
@@ -33,7 +34,12 @@ private const val TAG = "FILAMENT"
  *
  * If Filament itself fails to initialize (e.g. no usable GPU driver — §33),
  * this renders nothing rather than crashing: marker detection and the info
- * panel keep working without the 3D overlay.
+ * panel keep working without the 3D overlay. Two independent guards cover
+ * that: [NativeSupport.isAvailable] short-circuits when the native libraries
+ * themselves wouldn't load (checked at process start, so no [android.util.Log]
+ * noise per composition), and [runCatching] below catches a driver/engine
+ * failure at construction time. [ArScreen] pairs this with a visible notice
+ * so the missing overlay is explained rather than just silent.
  *
  * [userRotation] (§27 3D interaction — drag to rotate), [userOffset]
  * (§ user request — drag-and-drop) and [userScale] (§ user request — pinch
@@ -49,6 +55,10 @@ fun FilamentView(
     userScale: Float = 1f,
     modifier: Modifier = Modifier
 ) {
+    // Read before any Filament type is touched: constructing RenderLifecycle
+    // calls Filament.init() transitively and throws if the .so files are absent.
+    if (!NativeSupport.isAvailable) return
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 

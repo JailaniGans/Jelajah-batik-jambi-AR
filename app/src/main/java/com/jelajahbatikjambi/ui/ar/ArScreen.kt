@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +54,7 @@ import com.jelajahbatikjambi.ar.plus
 import com.jelajahbatikjambi.ar.times
 import com.jelajahbatikjambi.camera.CameraAnalyzer
 import com.jelajahbatikjambi.camera.CameraController
+import com.jelajahbatikjambi.render.NativeSupport
 import com.jelajahbatikjambi.ui.common.withClickSound
 import com.jelajahbatikjambi.ui.theme.Dimensions
 
@@ -145,43 +147,50 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
                     },
                     onControllerReady = { controller -> cameraController = controller }
                 )
-                FilamentView(
-                    modelPath = detectedBatik?.modelPath,
-                    pose = arPose,
-                    userRotation = userRotation,
-                    userOffset = userOffset,
-                    userScale = userScale,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectObjectManipulationGestures(
-                                onRotate = { dx, dy ->
-                                    val yaw = -dx * ROTATION_SENSITIVITY
-                                    val pitch = -dy * ROTATION_SENSITIVITY
-                                    val delta = Quaternion.fromAxisAngle(Vector3(0f, 1f, 0f), yaw) *
-                                        Quaternion.fromAxisAngle(Vector3(1f, 0f, 0f), pitch)
-                                    userRotation = (delta * userRotation).normalized()
-                                },
-                                onPan = { dx, dy ->
-                                    userOffset = userOffset + Vector3(
-                                        x = dx * PAN_SENSITIVITY,
-                                        y = -dy * PAN_SENSITIVITY,
-                                        z = 0f
-                                    )
-                                },
-                                onZoom = { scaleFactor ->
-                                    userScale = (userScale * scaleFactor).coerceIn(MIN_USER_SCALE, MAX_USER_SCALE)
-                                }
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            detectTapGestures(onDoubleTap = {
-                                userRotation = Quaternion.IDENTITY
-                                userOffset = Vector3.ZERO
-                                userScale = 1f
-                            })
-                        }
-                )
+                // The 3D overlay is optional: if the Filament native libraries
+                // wouldn't load on this device (NativeSupport, resolved once at
+                // process start) we skip the whole surface *and* its gesture
+                // modifiers, and say so on screen — rather than dragging a
+                // SurfaceView into existence that can only fail.
+                if (NativeSupport.isAvailable) {
+                    FilamentView(
+                        modelPath = detectedBatik?.modelPath,
+                        pose = arPose,
+                        userRotation = userRotation,
+                        userOffset = userOffset,
+                        userScale = userScale,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectObjectManipulationGestures(
+                                    onRotate = { dx, dy ->
+                                        val yaw = -dx * ROTATION_SENSITIVITY
+                                        val pitch = -dy * ROTATION_SENSITIVITY
+                                        val delta = Quaternion.fromAxisAngle(Vector3(0f, 1f, 0f), yaw) *
+                                            Quaternion.fromAxisAngle(Vector3(1f, 0f, 0f), pitch)
+                                        userRotation = (delta * userRotation).normalized()
+                                    },
+                                    onPan = { dx, dy ->
+                                        userOffset = userOffset + Vector3(
+                                            x = dx * PAN_SENSITIVITY,
+                                            y = -dy * PAN_SENSITIVITY,
+                                            z = 0f
+                                        )
+                                    },
+                                    onZoom = { scaleFactor ->
+                                        userScale = (userScale * scaleFactor).coerceIn(MIN_USER_SCALE, MAX_USER_SCALE)
+                                    }
+                                )
+                            }
+                            .pointerInput(Unit) {
+                                detectTapGestures(onDoubleTap = {
+                                    userRotation = Quaternion.IDENTITY
+                                    userOffset = Vector3.ZERO
+                                    userScale = 1f
+                                })
+                            }
+                    )
+                }
                 // Subtle top/bottom scrims so the status pill, back button,
                 // flash toggle and info panel keep contrast against whatever
                 // busy motif/scenery the camera happens to be pointed at —
@@ -201,6 +210,14 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
                         .align(Alignment.TopCenter)
                         .padding(top = Dimensions.spacingXxl)
                 )
+                if (!NativeSupport.isAvailable) {
+                    Render3DUnavailableNotice(
+                        reason = NativeSupport.failureReason,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = Dimensions.spacingXxl + 56.dp)
+                    )
+                }
                 if (hasFlash) {
                     ArControls(
                         isFlashOn = isFlashOn,
@@ -324,6 +341,43 @@ private fun ScanHint(state: ArState, modifier: Modifier = Modifier) {
                 )
                 .padding(horizontal = Dimensions.spacingMd, vertical = Dimensions.spacingSm)
         )
+    }
+}
+
+/**
+ * Caption shown when the Filament native libraries wouldn't load, so a camera
+ * preview that never grows an object on it is explained rather than silently
+ * broken. Deliberately a caption and not an error screen: marker detection,
+ * the info panel, the detail pages and the quiz all work without the 3D
+ * overlay (§33), so blocking the screen would take away working features.
+ * [reason] is the underlying exception from [NativeSupport], shown in small
+ * type purely as a diagnostic aid.
+ */
+@Composable
+private fun Render3DUnavailableNotice(reason: String?, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(horizontal = Dimensions.spacingLg),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Tampilan 3D tidak tersedia di perangkat ini",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            modifier = Modifier
+                .background(
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                    shape = RoundedCornerShape(Dimensions.cornerRadiusSmall)
+                )
+                .padding(horizontal = Dimensions.spacingMd, vertical = Dimensions.spacingSm)
+        )
+        if (reason != null) {
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier.padding(top = Dimensions.spacingXs)
+            )
+        }
     }
 }
 

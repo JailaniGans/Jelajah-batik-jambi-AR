@@ -56,7 +56,13 @@ class ModelLoader(private val engine: Engine) {
     }
 
     companion object {
-        /** Must be called once before [ModelLoader] is used (e.g. app start). */
+        /**
+         * Must be called once before [ModelLoader] is used (e.g. app start).
+         *
+         * Throws [UnsatisfiedLinkError] if `libgltfio-jni.so` can't be loaded — call it
+         * through [NativeSupport.initialize], never directly, so the failure is contained
+         * instead of taking down the caller.
+         */
         fun ensureNativeLibraryLoaded() {
             Gltfio.init()
         }

@@ -108,7 +108,13 @@ class FilamentRenderer {
     }
 
     companion object {
-        /** Must be called once before any Filament object is created (e.g. app start). */
+        /**
+         * Must be called once before any Filament object is created (e.g. app start).
+         *
+         * Throws [UnsatisfiedLinkError] if `libfilament-jni.so` can't be loaded — call it
+         * through [NativeSupport.initialize], never directly, so the failure is contained
+         * instead of taking down the caller.
+         */
         fun ensureNativeLibraryLoaded() {
             Filament.init()
         }
