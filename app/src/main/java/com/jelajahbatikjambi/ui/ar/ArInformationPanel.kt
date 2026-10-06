@@ -40,8 +40,12 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
  * Summary card shown once a marker is confirmed (§9-13). Only a short
  * summary lives here — [batik.shortDescription] is capped at 3 lines; the
  * full [BatikData.meaning] / [BatikData.history] belong on the Detail screen.
- * Must never appear before confirmation: callers pass `batik = null` for
- * every [com.jelajahbatikjambi.ar.ArState] except [com.jelajahbatikjambi.ar.ArState.Tracking].
+ * Must never appear before the *first* confirmation: callers pass
+ * `batik = null` until something has been confirmed, and pass null again
+ * only if the panel was dismissed — afterwards the matched motif stays
+ * sticky (§ user request), so the card no longer vanishes with each tracking
+ * dropout even though the underlying [com.jelajahbatikjambi.ar.ArState]
+ * does.
  *
  * Leads with a thumbnail of the matched motif photo — a quick visual
  * confirmation of *what* was recognized, not just its name — and a top-right

@@ -12,6 +12,12 @@ import androidx.room.PrimaryKey
  * [com.jelajahbatikjambi.render.TexturedCubeGlbGenerator]) — never
  * `assets/`-relative paths, which is how consumers distinguish the two
  * (see [com.jelajahbatikjambi.ui.common.AssetImage]).
+ *
+ * [meaning]/[history] are null until the user fills them in on the edit
+ * screen (they were added in schema v4); null surfaces as the honest
+ * "not verified" placeholder instead of invented cultural content (§38).
+ * Files are overwritten in place on edit rather than replaced by a new
+ * uuid, so no orphaned photo/model accumulates per edit.
  */
 @Entity(tableName = "custom_motifs")
 data class CustomMotifEntity(
@@ -21,5 +27,7 @@ data class CustomMotifEntity(
     val shortDescription: String,
     val imagePath: String,
     val modelPath: String,
+    val meaning: String? = null,
+    val history: String? = null,
     val createdAt: Long
 )

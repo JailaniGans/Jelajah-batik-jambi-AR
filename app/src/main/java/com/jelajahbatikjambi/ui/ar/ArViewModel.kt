@@ -14,11 +14,11 @@ import com.jelajahbatikjambi.ar.ImageTargetDetector
 import com.jelajahbatikjambi.ar.MotifDetector
 import com.jelajahbatikjambi.ar.Pose
 import com.jelajahbatikjambi.data.model.BatikData
-import com.jelajahbatikjambi.data.repository.BatikRepository
-import com.jelajahbatikjambi.data.repository.CustomMotifRepository
 import com.jelajahbatikjambi.data.repository.DiscoveryRepository
+import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.ui.common.SoundEffects
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -29,10 +29,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.scan
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * Bridges the AR engine ([ArController]) and the Batik content
- * ([BatikRepository]) to the UI: forwards camera frames in, exposes tracking
+ * ([MotifRepository]) to the UI: forwards camera frames in, exposes tracking
  * state / pose / the currently confirmed [BatikData] out. Also saves a
  * [DiscoveryRepository] record the first time each motif is confirmed
  * (§16 — "Marker detected → Batik ditemukan → Save discovery → Collection
@@ -42,37 +43,37 @@ import kotlinx.coroutines.flow.stateIn
  * Detection targets the real motif photos directly (per explicit user
  * request, after repeated testing showed that's what's actually wanted,
  * rather than a separate printed ArUco marker) via [ImageTargetDetector],
- * built from [BatikRepository]'s own `imagePath`/`markerId` fields — a single
- * source of truth instead of a second hardcoded image list. Its FPS target is
- * far lower than ArUco's default: ORB feature matching + RANSAC homography
- * against multiple reference images is considerably more expensive per frame
- * than ArUco's grid-based detection.
+ * built from [MotifRepository]'s own `imagePath`/`markerId` fields — a
+ * single source of truth instead of a second hardcoded image list. Its FPS
+ * target is far lower than ArUco's default: ORB feature matching + RANSAC
+ * homography against multiple reference images is considerably more
+ * expensive per frame than ArUco's grid-based detection.
  *
- * User-uploaded custom motifs (§ user request: "tambahkan motif dengan
- * upload .jpg") are registered on top of the built-in set: the detector still
- * constructs synchronously from the built-in motifs so AR startup has no new
- * latency, then [CustomMotifRepository]'s live Flow feeds any custom motifs
- * in via [ImageTargetDetector.addReferenceImages] as they appear — including
- * ones added while this screen is already open.
+ * [MotifRepository] feeds *both* sources into the detector: custom motifs
+ * the user uploads (§ user request: "tambahkan motif dengan upload .jpg")
+ * and replacement photos for edited built-in motifs arrive through the same
+ * live Flow, diffed by `imagePath` and pushed in via
+ * [ImageTargetDetector.updateReferenceImages] — so a freshly added or
+ * freshly re-photoed motif is scannable immediately, including while this
+ * screen is already open, with no detector rebuild and no restart.
  *
  * [pose] and [detectedBatik] are "sticky" (§ user request: don't let the 3D
  * object/info panel/quiz button vanish just because the camera moved and
  * tracking briefly dropped out) — [ArController] itself still reports
- * [ArState.Searching]/[ArState.MarkerLost] truthfully for the status pill and
- * scan reticle, but once a marker has been confirmed at least once, the last
- * known pose and matched [BatikData] are kept here rather than cleared,
+ * [ArState.Searching]/[ArState.MarkerLost] truthfully for the status pill
+ * and scan reticle, but once a marker has been confirmed at least once, the
+ * last known pose and matched [BatikData] are kept here rather than cleared,
  * updating only when a *different* marker is subsequently confirmed.
  */
 class ArViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = BatikRepository(application.assets)
     private val database = AppDatabase.getInstance(application)
     private val discoveryRepository = DiscoveryRepository(database.discoveryDao())
-    private val customMotifRepository = CustomMotifRepository(database.customMotifDao())
+    private val motifRepository = MotifRepository.getInstance(application)
 
     private val imageTargetDetector = ImageTargetDetector(
         assetManager = application.assets,
-        referenceImages = repository.getAll().mapNotNull { batik ->
+        referenceImages = motifRepository.builtInMotifs.mapNotNull { batik ->
             batik.imagePath?.let { path ->
                 ImageTargetDetector.ReferenceImage(id = batik.markerId, name = batik.name, path = path)
             }
@@ -102,19 +103,46 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
         .scan(null as Int?) { previous, current -> current ?: previous }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    // Built-in motifs loaded once, plus any custom ones the user has
-    // uploaded — kept as its own StateFlow so detectedBatik can resolve a
-    // tracked markerId to BatikData for either source uniformly.
-    private val allMotifs: StateFlow<List<BatikData>> = customMotifRepository.observeAllAsBatikData()
-        .map { custom -> repository.getAll() + custom }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, repository.getAll())
+    /**
+     * True from the *first* confirmed marker of this AR session onwards,
+     * and never back to false while the screen stays open (§ user request:
+     * once a motif has been found, keep presenting it as found even after
+     * the camera moves away and tracking is genuinely lost again).
+     *
+     * Deliberately session-scoped: this ViewModel is bound to the AR nav
+     * back-stack entry, so leaving the screen clears it and the next visit
+     * starts fresh from "Mencari motif...". Note it's the *presentation*
+     * that's sticky — [state] itself keeps reporting Searching/MarkerLost
+     * truthfully for the reticle and anything that cares about live tracking.
+     */
+    val hasDiscovered: StateFlow<Boolean> = stickyMarkerId
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // Built-in motifs (with the user's edits applied) plus any custom ones
+    // they've uploaded — kept as its own StateFlow so detectedBatik can
+    // resolve a tracked markerId to BatikData for either source uniformly.
+    private val allMotifs: StateFlow<List<BatikData>> = motifRepository.allMotifs
+        .stateIn(viewModelScope, SharingStarted.Eagerly, motifRepository.builtInMotifs)
 
     /** The last confirmed marker's [BatikData] — drives the AR panel and quiz shortcut (§9, §12). */
     val detectedBatik: StateFlow<BatikData?> = combine(stickyMarkerId, allMotifs) { markerId, motifs ->
         markerId?.let { id -> motifs.firstOrNull { it.markerId == id } }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    // markerId -> reference photo currently loaded into the detector. Only
+    // ever touched from the sync coroutine below (plus seeding here in init,
+    // which happens-before it starts), so a plain map is enough.
+    private val registeredReferences = mutableMapOf<Int, String>()
+
     init {
+        // The detector was just built from these paths, so they count as
+        // registered — only a *changed* photo (an edit) or a new motif will
+        // be pushed in afterwards.
+        motifRepository.builtInMotifs.forEach { batik ->
+            batik.imagePath?.let { registeredReferences[batik.markerId] = it }
+        }
+
         detectedBatik
             .filterNotNull()
             .distinctUntilChangedBy { it.id }
@@ -124,24 +152,35 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
             }
             .launchIn(viewModelScope)
 
-        // Feed newly-added custom motifs into the live detector as they
-        // appear, without rebuilding it (addReferenceImages only appends).
-        var registeredMarkerIds = emptySet<Int>()
-        customMotifRepository.observeAllAsBatikData()
-            .onEach { customMotifs ->
-                val newOnes = customMotifs.filter { it.markerId !in registeredMarkerIds }
-                if (newOnes.isNotEmpty()) {
-                    imageTargetDetector.addReferenceImages(
-                        newOnes.mapNotNull { motif ->
-                            motif.imagePath?.let { path ->
-                                ImageTargetDetector.ReferenceImage(id = motif.markerId, name = motif.name, path = path)
-                            }
-                        }
-                    )
-                    registeredMarkerIds = registeredMarkerIds + newOnes.map { it.markerId }
-                }
+        // Kept in sync with the same single source of truth the rest of the
+        // app reads: built-in edits and newly-added custom motifs both show
+        // up as an imagePath this detector hasn't seen yet. Off the main
+        // thread because updating means decoding a photo and running ORB.
+        viewModelScope.launch(Dispatchers.Default) {
+            motifRepository.allMotifs.collect { motifs -> syncDetectorReferences(motifs) }
+        }
+    }
+
+    /**
+     * Pushes reference photos that changed (or haven't been loaded yet) into
+     * the live detector. The reverse case — a photo reverting to the bundled
+     * asset after "Kembalikan ke asli" — is caught by the same diff: the
+     * asset path differs from the edited path that's registered, so the
+     * original photo is loaded back in.
+     */
+    private fun syncDetectorReferences(motifs: List<BatikData>) {
+        val changed = motifs.mapNotNull { motif ->
+            val path = motif.imagePath ?: return@mapNotNull null
+            if (registeredReferences[motif.markerId] == path) {
+                null
+            } else {
+                ImageTargetDetector.ReferenceImage(id = motif.markerId, name = motif.name, path = path) to path
             }
-            .launchIn(viewModelScope)
+        }
+        if (changed.isEmpty()) return
+
+        imageTargetDetector.updateReferenceImages(changed.map { it.first })
+        changed.forEach { (reference, path) -> registeredReferences[reference.id] = path }
     }
 
     fun onCameraFrame(image: ImageProxy) {

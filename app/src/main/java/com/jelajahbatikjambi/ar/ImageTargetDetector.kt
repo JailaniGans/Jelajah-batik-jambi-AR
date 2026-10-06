@@ -87,20 +87,31 @@ class ImageTargetDetector(
     private val referenceOrb = ORB.create(1000)
     private val matcher: DescriptorMatcher = BFMatcher.create(DescriptorMatcher.BRUTEFORCE_HAMMING)
 
-    // @Volatile: addReferenceImages() reassigns this from a coroutine (main
-    // thread), while detect() reads it from the CameraX analysis thread.
+    // @Volatile: updateReferenceImages() reassigns this from a background
+    // coroutine, while detect() reads it from the CameraX analysis thread.
     @Volatile
     private var targets: List<Target> = referenceImages.map { ref -> loadTarget(ref) }
 
     /**
-     * Appends newly-added custom motifs to the live detection set without
-     * rebuilding the detector — used when a motif is added while the AR
-     * screen may already be running (§ user request: "tambahkan motif
-     * dengan upload .jpg"). Existing targets keep matching uninterrupted.
+     * Syncs the live detection set with newly-added *or newly-edited* motifs
+     * without rebuilding the detector: ids already present are replaced (a
+     * user who swapped a motif's photo on the edit screen needs AR scanning
+     * to match the new photo, not the old one), unknown ids are appended,
+     * and untouched targets keep matching uninterrupted. It is just an
+     * atomic reassignment of [targets], so a frame mid-[detect] keeps using
+     * the list it started on.
+     *
+     * Callers should run this off the main thread ([loadTarget] decodes a
+     * bitmap and runs ORB over it), and replaced target Mats are *not*
+     * released here on purpose: the camera thread may still be iterating
+     * the previous list, so freeing them risks a use-after-free. They are
+     * small (one ORB descriptor set each) and reclaimed by OpenCV's
+     * finalizer once nothing references them — a bounded cost per edit.
      */
-    fun addReferenceImages(newImages: List<ReferenceImage>) {
+    fun updateReferenceImages(newImages: List<ReferenceImage>) {
         if (newImages.isEmpty()) return
-        targets = targets + newImages.map { loadTarget(it) }
+        val replacedIds = newImages.mapTo(mutableSetOf()) { it.id }
+        targets = targets.filter { it.id !in replacedIds } + newImages.map { loadTarget(it) }
     }
 
     private fun loadTarget(ref: ReferenceImage): Target {

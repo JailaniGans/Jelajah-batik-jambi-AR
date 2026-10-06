@@ -13,6 +13,11 @@ object AppRoutes {
 
     fun detail(batikId: Int) = "detail/$batikId"
 
+    const val EDIT_MOTIF_ARG = "batikId"
+    const val EDIT_MOTIF = "edit_motif/{$EDIT_MOTIF_ARG}"
+
+    fun editMotif(batikId: Int) = "edit_motif/$batikId"
+
     // No {batikId} placeholder in the base route: NavType.IntType arguments
     // can't be declared nullable, so an absent query param (Collection's
     // general quiz) vs. a present one (scoped to a just-scanned motif) is

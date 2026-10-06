@@ -39,24 +39,28 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
  * text alone, and pulses gently while the state is still "in progress"
  * (Initializing/Searching/MarkerDetected) so the UI reads as alive rather
  * than stuck. Text swaps with a fade instead of popping instantly.
+ *
+ * [hasDiscovered] makes the found state *sticky* (§ user request): once any
+ * motif has been confirmed during this AR session, the pill stops cycling
+ * through "Mencari / Mengunci / Arahkan kamera" and stays on the green
+ * "Motif ditemukan" — the object and info panel below stay on screen too,
+ * so a pill flipping back to "searching" while they're still visible read as
+ * a contradiction. [ArState.Error] is the one state that still overrides it:
+ * a broken pipeline should never be dressed up as a successful scan.
  */
 @Composable
-fun ArStatusIndicator(state: ArState, modifier: Modifier = Modifier) {
-    val text = when (state) {
-        is ArState.Initializing -> "Menyiapkan kamera..."
-        is ArState.Searching -> "Mencari motif..."
-        is ArState.MarkerDetected -> "Mengunci motif..."
-        is ArState.Tracking -> "Motif ditemukan"
-        is ArState.MarkerLost -> "Arahkan kamera ke motif"
-        is ArState.Error -> state.message
-    }
-    val dotColor = when (state) {
-        is ArState.Tracking -> BatikGreen
-        is ArState.MarkerDetected -> BatikGold
-        is ArState.Error -> MaterialTheme.colorScheme.error
+fun ArStatusIndicator(state: ArState, hasDiscovered: Boolean = false, modifier: Modifier = Modifier) {
+    val isStickyFound = hasDiscovered && state !is ArState.Error
+
+    val text = statusPillText(state = state, hasDiscovered = hasDiscovered)
+    val dotColor = when {
+        state is ArState.Error -> MaterialTheme.colorScheme.error
+        isStickyFound || state is ArState.Tracking -> BatikGreen
+        state is ArState.MarkerDetected -> BatikGold
         else -> Color.White
     }
-    val isPulsing = state is ArState.Initializing || state is ArState.Searching || state is ArState.MarkerDetected
+    val isPulsing = !isStickyFound &&
+        (state is ArState.Initializing || state is ArState.Searching || state is ArState.MarkerDetected)
 
     val infiniteTransition = rememberInfiniteTransition(label = "statusPulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -92,5 +96,27 @@ fun ArStatusIndicator(state: ArState, modifier: Modifier = Modifier) {
         ) { label ->
             Text(text = label, style = MaterialTheme.typography.labelLarge, color = Color.White)
         }
+    }
+}
+
+/**
+ * The pill's label for a given scan [state] and sticky-found flag — pulled
+ * out of [ArStatusIndicator] as a plain function so the behaviour the user
+ * asked for ("once found, keep saying found") is unit-testable on the JVM
+ * rather than only observable by squinting at a camera screen.
+ *
+ * [ArState.Error] wins over the sticky flag so a dead pipeline is never
+ * presented as a successful scan.
+ */
+fun statusPillText(state: ArState, hasDiscovered: Boolean): String = when {
+    state is ArState.Error -> state.message
+    hasDiscovered -> "Motif ditemukan"
+    else -> when (state) {
+        is ArState.Initializing -> "Menyiapkan kamera..."
+        is ArState.Searching -> "Mencari motif..."
+        is ArState.MarkerDetected -> "Mengunci motif..."
+        is ArState.Tracking -> "Motif ditemukan"
+        is ArState.MarkerLost -> "Arahkan kamera ke motif"
+        is ArState.Error -> state.message
     }
 }

@@ -8,10 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.jelajahbatikjambi.data.model.QuizQuestion
 import com.jelajahbatikjambi.data.model.buildQuizQuestions
 import com.jelajahbatikjambi.data.model.buildQuizQuestionsForMotif
-import com.jelajahbatikjambi.data.repository.BatikRepository
-import com.jelajahbatikjambi.data.repository.CustomMotifRepository
 import com.jelajahbatikjambi.data.repository.CustomQuizRepository
 import com.jelajahbatikjambi.data.repository.DiscoveryRepository
+import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.ui.common.SoundEffects
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,10 +51,9 @@ data class QuizUiState(
  */
 class QuizViewModel(application: Application, private val scopedBatikId: Int? = null) : AndroidViewModel(application) {
 
-    private val batikRepository = BatikRepository(application.assets)
     private val database = AppDatabase.getInstance(application)
     private val discoveryRepository = DiscoveryRepository(database.discoveryDao())
-    private val customMotifRepository = CustomMotifRepository(database.customMotifDao())
+    private val motifRepository = MotifRepository.getInstance(application)
     private val customQuizRepository = CustomQuizRepository(database.customQuizQuestionDao())
 
     private val _uiState = MutableStateFlow(QuizUiState())
@@ -63,7 +61,7 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
 
     init {
         viewModelScope.launch {
-            val allBatik = batikRepository.getAll() + customMotifRepository.getAllOnceAsBatikData()
+            val allBatik = motifRepository.getAllOnce()
             val questions = if (scopedBatikId != null) {
                 allBatik.firstOrNull { it.id == scopedBatikId }
                     ?.let { buildQuizQuestionsForMotif(it, allBatik) }

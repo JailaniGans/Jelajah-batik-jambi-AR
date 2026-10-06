@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.map
  */
 private const val CUSTOM_ID_OFFSET = 1000
 
+/** Shown for [BatikData.meaning]/[BatikData.history] the user hasn't filled in yet (§38). */
+private const val UNVERIFIED_MEANING =
+    "Motif ini ditambahkan sendiri oleh pengguna; makna budaya belum diverifikasi."
+private const val UNVERIFIED_HISTORY =
+    "Motif ini ditambahkan sendiri oleh pengguna; riwayat budaya belum diverifikasi."
+
 /**
  * Wraps [CustomMotifDao], exposing user-uploaded motifs (§ user request:
  * "tambahkan motif dengan upload .jpg") as plain [BatikData] so every screen
@@ -47,6 +53,20 @@ class CustomMotifRepository(private val dao: CustomMotifDao) {
             createdAt = System.currentTimeMillis()
         )
     )
+
+    /**
+     * Looks up the raw entity behind a combined (offset) id — the edit screen
+     * needs the stored file paths, not the merged [BatikData] view, so it can
+     * overwrite the same photo/GLB files in place.
+     */
+    suspend fun getByCombinedId(combinedId: Int): CustomMotifEntity? {
+        val localId = combinedId - CUSTOM_ID_OFFSET
+        if (localId < 0) return null
+        return dao.getById(localId.toLong())
+    }
+
+    /** Persists an edit to an existing custom motif (paths unchanged unless the caller rewrote the files). */
+    suspend fun updateMotif(motif: CustomMotifEntity) = dao.update(motif)
 }
 
 private fun CustomMotifEntity.toBatikData(): BatikData {
@@ -58,9 +78,11 @@ private fun CustomMotifEntity.toBatikData(): BatikData {
         category = category,
         shortDescription = shortDescription,
         // Honest placeholder rather than fabricated cultural fact (§38) — a
-        // user-uploaded motif has no verified meaning/history behind it.
-        meaning = "Motif ini ditambahkan sendiri oleh pengguna; makna budaya belum diverifikasi.",
-        history = "Motif ini ditambahkan sendiri oleh pengguna; riwayat budaya belum diverifikasi.",
+        // user-uploaded motif has no verified meaning/history behind it, and
+        // the edit screen only replaces these once the user actually types
+        // something (a cleared field falls back to the placeholder again).
+        meaning = meaning?.takeIf { it.isNotBlank() } ?: UNVERIFIED_MEANING,
+        history = history?.takeIf { it.isNotBlank() } ?: UNVERIFIED_HISTORY,
         imagePath = imagePath,
         modelPath = modelPath
     )

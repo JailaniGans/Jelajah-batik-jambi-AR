@@ -17,6 +17,7 @@ import com.jelajahbatikjambi.ui.addmotif.AddMotifScreen
 import com.jelajahbatikjambi.ui.ar.ArScreen
 import com.jelajahbatikjambi.ui.collection.CollectionScreen
 import com.jelajahbatikjambi.ui.detail.DetailScreen
+import com.jelajahbatikjambi.ui.editmotif.EditMotifScreen
 import com.jelajahbatikjambi.ui.home.HomeScreen
 import com.jelajahbatikjambi.ui.quiz.CreateQuizScreen
 import com.jelajahbatikjambi.ui.quiz.QuizScreen
@@ -104,7 +105,21 @@ fun AppNavHost(
             DetailScreen(
                 batikId = batikId,
                 onBack = { navController.popBackStack() },
+                onEdit = { navController.navigate(AppRoutes.editMotif(it)) },
                 onJelajahiDenganAr = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = AppRoutes.EDIT_MOTIF,
+            arguments = listOf(navArgument(AppRoutes.EDIT_MOTIF_ARG) { type = NavType.IntType })
+        ) { backStackEntry ->
+            val batikId = backStackEntry.arguments?.getInt(AppRoutes.EDIT_MOTIF_ARG) ?: return@composable
+            EditMotifScreen(
+                batikId = batikId,
+                onBack = { navController.popBackStack() },
+                // Back on Detail, which re-reads the repository's Flow and
+                // therefore shows the freshly saved values immediately.
+                onSaved = { navController.popBackStack() }
             )
         }
     }

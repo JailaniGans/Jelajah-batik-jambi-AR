@@ -112,6 +112,10 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
     val arPose by arViewModel.pose.collectAsStateWithLifecycle()
     val detectedRegion by arViewModel.detectedRegion.collectAsStateWithLifecycle()
     val detectedBatik by arViewModel.detectedBatik.collectAsStateWithLifecycle()
+    // Drives the sticky "found" presentation: once anything has been
+    // confirmed this session, the status pill and scan hint stop telling the
+    // user to keep looking (see ArStatusIndicator/ScanHint).
+    val hasDiscovered by arViewModel.hasDiscovered.collectAsStateWithLifecycle()
 
     // Resets automatically whenever the confirmed motif changes (or clears),
     // so dismissing the panel for one motif doesn't suppress it for the next.
@@ -200,12 +204,14 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
                 MarkerReticle(state = arState, region = detectedRegion, modifier = Modifier.fillMaxSize())
                 ScanHint(
                     state = arState,
+                    hasDiscovered = hasDiscovered,
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(top = Dimensions.spacingXxl + 140.dp)
                 )
                 ArStatusIndicator(
                     state = arState,
+                    hasDiscovered = hasDiscovered,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = Dimensions.spacingXxl)
@@ -324,10 +330,16 @@ private fun ScanScrims(modifier: Modifier = Modifier) {
  * Small hint line under the scan bracket, only while actively searching —
  * gives a first-time user an explicit instruction instead of just a bracket
  * and a status pill to interpret on their own.
+ *
+ * Hidden for the rest of the session once [hasDiscovered] is true: telling
+ * the user to "point the camera at a Batik Jambi motif" while the found
+ * motif's info panel and 3D object are still sitting on screen would
+ * contradict them (§ user request — keep presenting it as found).
  */
 @Composable
-private fun ScanHint(state: ArState, modifier: Modifier = Modifier) {
-    val isSearching = state is ArState.Searching || state is ArState.Initializing
+private fun ScanHint(state: ArState, hasDiscovered: Boolean, modifier: Modifier = Modifier) {
+    val isSearching = !hasDiscovered &&
+        (state is ArState.Searching || state is ArState.Initializing)
 
     AnimatedVisibility(visible = isSearching, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
         Text(
