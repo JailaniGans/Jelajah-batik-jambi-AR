@@ -24,4 +24,8 @@ interface CustomMotifDao {
     /** Edits an existing motif in place (matched on the primary key). */
     @Update
     suspend fun update(motif: CustomMotifEntity)
+
+    /** Deletes one motif (matched on the primary key) — callers cascade its files/questions/discovery. */
+    @Query("DELETE FROM custom_motifs WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }

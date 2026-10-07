@@ -51,4 +51,37 @@ class EditMotifUiStateTest {
 
         assertTrue(state.canSave)
     }
+
+    @Test
+    fun `built-in motifs can never be deleted`() {
+        val state = EditMotifUiState(
+            isLoading = false,
+            isBuiltIn = true,
+            totalMotifs = 5
+        )
+
+        assertFalse(state.canDelete)
+    }
+
+    @Test
+    fun `a custom motif can be deleted while more than one motif exists`() {
+        val state = EditMotifUiState(
+            isLoading = false,
+            isBuiltIn = false,
+            totalMotifs = 5
+        )
+
+        assertTrue(state.canDelete)
+    }
+
+    @Test
+    fun `the last remaining motif cannot be deleted`() {
+        assertFalse(
+            EditMotifUiState(isLoading = false, isBuiltIn = false, totalMotifs = 1).canDelete
+        )
+        // Still loading means the count isn't known yet — stay on the safe side.
+        assertFalse(
+            EditMotifUiState(isLoading = true, isBuiltIn = false, totalMotifs = 0).canDelete
+        )
+    }
 }

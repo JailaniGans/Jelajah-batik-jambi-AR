@@ -114,6 +114,19 @@ class ImageTargetDetector(
         targets = targets.filter { it.id !in replacedIds } + newImages.map { loadTarget(it) }
     }
 
+    /**
+     * Drops targets whose motif was deleted, so its photo stops matching —
+     * otherwise a removed custom motif would still be trackable from the
+     * photo the user no longer has. Same atomic-reassignment contract as
+     * [updateReferenceImages]; the removed Mats are left to OpenCV's
+     * finalizer for the same reason (the camera thread may be mid-iteration
+     * on the previous list).
+     */
+    fun removeReferenceImages(ids: Set<Int>) {
+        if (ids.isEmpty()) return
+        targets = targets.filter { it.id !in ids }
+    }
+
     private fun loadTarget(ref: ReferenceImage): Target {
         val bitmap = if (ref.path.startsWith("/")) {
             BitmapFactory.decodeFile(ref.path)

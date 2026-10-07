@@ -74,6 +74,9 @@ class CustomMotifRepository(private val dao: CustomMotifDao) {
 
     /** Persists an edit to an existing custom motif (paths unchanged unless the caller rewrote the files). */
     suspend fun updateMotif(motif: CustomMotifEntity) = dao.update(motif)
+
+    /** Removes the row; the caller is responsible for the motif's files, questions and discovery record. */
+    suspend fun deleteMotif(motif: CustomMotifEntity) = dao.deleteById(motif.id)
 }
 
 private fun CustomMotifEntity.toBatikData(): BatikData {

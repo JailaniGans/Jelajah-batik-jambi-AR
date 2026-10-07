@@ -85,12 +85,20 @@ fun AppNavHost(
             QuizScreen(
                 batikId = batikId.takeIf { it >= 0 },
                 onBack = { navController.popBackStack() },
-                onCreateQuiz = { navController.navigate(AppRoutes.CREATE_QUIZ) },
+                onCreateQuiz = { navController.navigate(AppRoutes.createQuiz(batikId)) },
                 onManageCustomQuiz = { navController.navigate(AppRoutes.MANAGE_CUSTOM_QUIZ) }
             )
         }
-        composable(AppRoutes.CREATE_QUIZ) {
+        composable(
+            route = AppRoutes.CREATE_QUIZ,
+            arguments = listOf(navArgument(AppRoutes.CREATE_QUIZ_BATIK_ID_ARG) {
+                type = NavType.IntType
+                defaultValue = -1
+            })
+        ) { backStackEntry ->
+            val batikId = backStackEntry.arguments?.getInt(AppRoutes.CREATE_QUIZ_BATIK_ID_ARG) ?: -1
             CreateQuizScreen(
+                batikId = batikId.takeIf { it >= 0 },
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
             )
@@ -98,7 +106,7 @@ fun AppNavHost(
         composable(AppRoutes.MANAGE_CUSTOM_QUIZ) {
             ManageCustomQuizScreen(
                 onBack = { navController.popBackStack() },
-                onAddQuestion = { navController.navigate(AppRoutes.CREATE_QUIZ) },
+                onAddQuestion = { navController.navigate(AppRoutes.createQuiz()) },
                 onEditQuestion = { questionId -> navController.navigate(AppRoutes.editQuizQuestion(questionId)) }
             )
         }
@@ -140,7 +148,17 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 // Back on Detail, which re-reads the repository's Flow and
                 // therefore shows the freshly saved values immediately.
-                onSaved = { navController.popBackStack() }
+                onSaved = { navController.popBackStack() },
+                onEditQuestion = { questionId ->
+                    navController.navigate(AppRoutes.editQuizQuestion(questionId))
+                },
+                onAddQuestion = { navController.navigate(AppRoutes.createQuiz(batikId)) },
+                onDeleted = {
+                    // Detail would now point at nothing — pop past it too,
+                    // landing back on whatever opened it (Collection or AR).
+                    navController.popBackStack()
+                    navController.popBackStack()
+                }
             )
         }
     }

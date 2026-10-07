@@ -7,7 +7,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.jelajahbatikjambi.data.repository.CustomQuizRepository
 import com.jelajahbatikjambi.data.repository.MotifRepository
+import com.jelajahbatikjambi.database.AppDatabase
+import com.jelajahbatikjambi.database.CustomQuizQuestionEntity
 import com.jelajahbatikjambi.render.TexturedCubeGlbGenerator
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -33,12 +36,22 @@ data class EditMotifUiState(
     val shortDescription: String = "",
     val meaning: String = "",
     val history: String = "",
+    /** Quiz questions keyed to this motif, live — added/edited elsewhere shows up here. */
+    val questions: List<CustomQuizQuestionEntity> = emptyList(),
+    /** All motifs in the app — drives whether this one may be deleted (more than one must remain). */
+    val totalMotifs: Int = 0,
     val isSaving: Boolean = false,
+    val isDeleting: Boolean = false,
+    val deletedSuccessfully: Boolean = false,
     val error: String? = null,
     val savedSuccessfully: Boolean = false
 ) {
     val canSave: Boolean
         get() = !isLoading && name.isNotBlank() && category.isNotBlank() && shortDescription.isNotBlank()
+
+    /** Built-in motifs are never deletable; a custom one only while it isn't the app's last motif (§ user request). */
+    val canDelete: Boolean
+        get() = !isLoading && !isBuiltIn && totalMotifs > 1
 }
 
 /**
@@ -57,21 +70,38 @@ data class EditMotifUiState(
  * Either way the change lands in Room, which is why it's still there after
  * the process is killed — and why the AR detector, Collection, Detail and
  * Quiz (all reading [MotifRepository]) pick it up without a restart.
+ *
+ * Besides the motif's own fields, the screen manages the quiz questions
+ * keyed to it (§ user request: "info motif ... bisa di edit sekaligus
+ * soalnya"): the list is a live Room Flow, questions are deleted straight
+ * from here, and a custom motif itself can be deleted when more than one
+ * motif remains ([EditMotifUiState.canDelete]).
  */
 class EditMotifViewModel(application: Application, private val batikId: Int) : AndroidViewModel(application) {
 
     private val motifRepository = MotifRepository.getInstance(application)
+    private val customQuizRepository =
+        CustomQuizRepository(AppDatabase.getInstance(application).customQuizQuestionDao())
 
     private val _uiState = MutableStateFlow(EditMotifUiState(batikId = batikId))
     val uiState: StateFlow<EditMotifUiState> = _uiState.asStateFlow()
 
     init {
         load()
+        // Live: a question added (from this screen's Tambah button, Add Motif
+        // or Create Quiz) or deleted elsewhere shows up without a reload —
+        // and survives load() replacing the rest of the state, because it
+        // only ever writes the questions field.
+        viewModelScope.launch {
+            customQuizRepository.observeByBatikId(batikId)
+                .collect { questions -> update { it.copy(questions = questions) } }
+        }
     }
 
     private fun load() {
         viewModelScope.launch {
-            val motif = motifRepository.getOnceById(batikId)
+            val allMotifs = motifRepository.getAllOnce()
+            val motif = allMotifs.firstOrNull { it.id == batikId }
             if (motif == null) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -80,17 +110,18 @@ class EditMotifViewModel(application: Application, private val batikId: Int) : A
                 return@launch
             }
             val isBuiltIn = motifRepository.isBuiltIn(batikId)
-            _uiState.value = EditMotifUiState(
+            _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                batikId = batikId,
                 isBuiltIn = isBuiltIn,
                 isEdited = isBuiltIn && motifRepository.getOverride(batikId) != null,
                 previewBitmap = motif.imagePath?.let { decodeImage(it) },
+                pickedBitmap = null,
                 name = motif.name,
                 category = motif.category,
                 shortDescription = motif.shortDescription,
                 meaning = motif.meaning,
-                history = motif.history
+                history = motif.history,
+                totalMotifs = allMotifs.size
             )
         }
     }
@@ -158,6 +189,41 @@ class EditMotifViewModel(application: Application, private val batikId: Int) : A
                 load()
             } else {
                 _uiState.value = _uiState.value.copy(error = "Gagal mengembalikan motif. Coba lagi.")
+            }
+        }
+    }
+
+    /** Removes one quiz question from this motif's list (the motif itself stays). */
+    fun deleteQuestion(question: CustomQuizQuestionEntity) {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) { customQuizRepository.deleteQuestion(question) }
+            }
+            if (result.isFailure) {
+                update { it.copy(error = "Gagal menghapus soal. Coba lagi.") }
+            }
+        }
+    }
+
+    /**
+     * Deletes a custom motif outright — photo, GLB, discovery record and
+     * its quiz questions go with it ([MotifRepository.deleteCustomMotif]).
+     * Guarded by [EditMotifUiState.canDelete]; success flips
+     * [EditMotifUiState.deletedSuccessfully] so the screen can navigate away.
+     */
+    fun deleteMotif() {
+        val state = _uiState.value
+        if (!state.canDelete || state.isDeleting) return
+
+        _uiState.value = state.copy(isDeleting = true, error = null)
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching { motifRepository.deleteCustomMotif(batikId) }
+            }
+            _uiState.value = if (result.isSuccess) {
+                _uiState.value.copy(isDeleting = false, deletedSuccessfully = true)
+            } else {
+                _uiState.value.copy(isDeleting = false, error = "Gagal menghapus motif. Coba lagi.")
             }
         }
     }

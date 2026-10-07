@@ -169,6 +169,15 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
      * original photo is loaded back in.
      */
     private fun syncDetectorReferences(motifs: List<BatikData>) {
+        // A deleted motif's photo must stop matching too — diff against the
+        // registered set, not just the current one.
+        val currentIds = motifs.mapTo(mutableSetOf()) { it.markerId }
+        val removedIds = registeredReferences.keys.filter { it !in currentIds }
+        if (removedIds.isNotEmpty()) {
+            imageTargetDetector.removeReferenceImages(removedIds.toSet())
+            removedIds.forEach { registeredReferences.remove(it) }
+        }
+
         val changed = motifs.mapNotNull { motif ->
             val path = motif.imagePath ?: return@mapNotNull null
             if (registeredReferences[motif.markerId] == path) {

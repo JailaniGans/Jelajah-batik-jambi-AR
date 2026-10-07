@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.map
 /** Sub-directory of `filesDir` holding replacement photos for edited built-in motifs. */
 private const val EDITED_IMAGE_DIR = "edited_images"
 
+/** Sub-directories of `filesDir` the Add Motif flow writes a custom motif's photo/GLB into. */
+private const val CUSTOM_IMAGE_DIR = "custom_images"
+private const val CUSTOM_MODEL_DIR = "custom_models"
+
 /**
  * The single source of truth for "what motifs exist and what do they say":
  * built-in content from the read-only `assets/data/batik.json`, with the
@@ -118,6 +122,31 @@ class MotifRepository private constructor(private val application: Application) 
             // Only ever delete inside our own directory — belt and braces
             // against a stale row pointing somewhere unexpected.
             if (file.parentFile?.name == EDITED_IMAGE_DIR) {
+                runCatching { file.delete() }
+            }
+        }
+    }
+
+    /**
+     * Removes a custom motif and everything keyed to it: its photo and GLB
+     * files (only ever inside our own upload directories), its quiz
+     * questions, and its discovery record — nothing may dangle after the
+     * row is gone. Built-in motifs aren't deletable; they live in the
+     * read-only `batik.json`. Callers decide when deletion is allowed
+     * (§ user request: "motif baru bisa di hapus jika motif lebih dari 1" —
+     * see `canDelete` on the edit screen's state).
+     */
+    suspend fun deleteCustomMotif(combinedId: Int) {
+        val entity = getCustomMotif(combinedId)
+            ?: error("Motif custom tidak ditemukan")
+        customMotifRepository.deleteMotif(entity)
+        database.customQuizQuestionDao().deleteByBatikId(combinedId)
+        database.discoveryDao().deleteByBatikId(combinedId)
+        listOf(entity.imagePath, entity.modelPath).forEach { path ->
+            val file = File(path)
+            // Same belt-and-braces rule as resetOverride: only ever delete
+            // inside the directories the upload flow itself created.
+            if (file.parentFile?.name == CUSTOM_IMAGE_DIR || file.parentFile?.name == CUSTOM_MODEL_DIR) {
                 runCatching { file.delete() }
             }
         }

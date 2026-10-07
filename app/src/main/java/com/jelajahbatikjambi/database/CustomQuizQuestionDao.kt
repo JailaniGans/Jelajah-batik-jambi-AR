@@ -19,6 +19,10 @@ interface CustomQuizQuestionDao {
     @Query("SELECT * FROM custom_quiz_questions WHERE id = :id")
     suspend fun getById(id: Long): CustomQuizQuestionEntity?
 
+    /** Live list of the questions keyed to one motif — the motif edit screen renders this. */
+    @Query("SELECT * FROM custom_quiz_questions WHERE batikId = :batikId ORDER BY createdAt ASC")
+    fun observeByBatikId(batikId: Int): Flow<List<CustomQuizQuestionEntity>>
+
     @Insert
     suspend fun insert(question: CustomQuizQuestionEntity): Long
 
@@ -27,4 +31,8 @@ interface CustomQuizQuestionDao {
 
     @Delete
     suspend fun delete(question: CustomQuizQuestionEntity)
+
+    /** Cascade for deleting a motif: its questions go with it, never left dangling. */
+    @Query("DELETE FROM custom_quiz_questions WHERE batikId = :batikId")
+    suspend fun deleteByBatikId(batikId: Int)
 }

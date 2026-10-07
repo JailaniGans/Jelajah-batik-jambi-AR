@@ -16,4 +16,8 @@ interface DiscoveryDao {
     // overwrite its original discoveredAt.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(discovery: DiscoveryEntity)
+
+    /** Cascade for deleting a motif: its discovery record goes with it. */
+    @Query("DELETE FROM discoveries WHERE batikId = :batikId")
+    suspend fun deleteByBatikId(batikId: Int)
 }
