@@ -65,6 +65,13 @@ class CustomMotifRepository(private val dao: CustomMotifDao) {
         return dao.getById(localId.toLong())
     }
 
+    /**
+     * The [BatikData.id] a freshly inserted motif got — [addMotif] returns the
+     * raw Room id, and callers that immediately attach more data to the motif
+     * (e.g. a quiz question keyed by [BatikData.id]) need the combined one.
+     */
+    fun combinedIdOf(rawId: Long): Int = CUSTOM_ID_OFFSET + rawId.toInt()
+
     /** Persists an edit to an existing custom motif (paths unchanged unless the caller rewrote the files). */
     suspend fun updateMotif(motif: CustomMotifEntity) = dao.update(motif)
 }

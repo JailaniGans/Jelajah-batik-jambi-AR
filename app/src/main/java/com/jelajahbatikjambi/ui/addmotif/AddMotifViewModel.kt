@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jelajahbatikjambi.data.repository.CustomMotifRepository
+import com.jelajahbatikjambi.data.repository.CustomQuizRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.render.TexturedCubeGlbGenerator
 import kotlinx.coroutines.Dispatchers
@@ -23,12 +24,20 @@ data class AddMotifUiState(
     val name: String = "",
     val category: String = "",
     val shortDescription: String = "",
+    /** Optional "buat soal kuis untuk motif ini" section — off keeps the old add-motif-only flow. */
+    val createQuizQuestion: Boolean = false,
+    val questionPrompt: String = "",
+    val questionOptions: List<String> = listOf("", "", "", ""),
+    val questionCorrectOptionIndex: Int = 0,
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedSuccessfully: Boolean = false
 ) {
+    /** The question fields only gate saving when the section is ticked. */
     val canSave: Boolean
-        get() = previewBitmap != null && name.isNotBlank() && category.isNotBlank() && shortDescription.isNotBlank()
+        get() = previewBitmap != null && name.isNotBlank() && category.isNotBlank() &&
+            shortDescription.isNotBlank() &&
+            (!createQuizQuestion || (questionPrompt.isNotBlank() && questionOptions.all { it.isNotBlank() }))
 }
 
 /**
@@ -39,10 +48,17 @@ data class AddMotifUiState(
  * [TexturedCubeGlbGenerator], and saves a [com.jelajahbatikjambi.database.CustomMotifEntity]
  * pointing at both files. [com.jelajahbatikjambi.ui.ar.ArViewModel] then picks
  * up the new motif automatically through its live Room Flow.
+ *
+ * When the optional "buat soal kuis" section is ticked, a
+ * [com.jelajahbatikjambi.database.CustomQuizQuestionEntity] keyed to the new
+ * motif's combined id is written in the same coroutine — saved after the
+ * motif, because the question needs that id, and in the same [runCatching] so
+ * a partial save (motif without its question) reports as a failure.
  */
 class AddMotifViewModel(application: Application) : AndroidViewModel(application) {
 
     private val customMotifRepository = CustomMotifRepository(AppDatabase.getInstance(application).customMotifDao())
+    private val customQuizRepository = CustomQuizRepository(AppDatabase.getInstance(application).customQuizQuestionDao())
 
     private val _uiState = MutableStateFlow(AddMotifUiState())
     val uiState: StateFlow<AddMotifUiState> = _uiState.asStateFlow()
@@ -77,6 +93,23 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = _uiState.value.copy(shortDescription = value)
     }
 
+    fun onCreateQuizQuestionToggled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(createQuizQuestion = enabled, error = null)
+    }
+
+    fun onQuestionPromptChanged(value: String) {
+        _uiState.value = _uiState.value.copy(questionPrompt = value)
+    }
+
+    fun onQuestionOptionChanged(index: Int, value: String) {
+        val updated = _uiState.value.questionOptions.toMutableList().also { it[index] = value }
+        _uiState.value = _uiState.value.copy(questionOptions = updated)
+    }
+
+    fun onQuestionCorrectOptionSelected(index: Int) {
+        _uiState.value = _uiState.value.copy(questionCorrectOptionIndex = index)
+    }
+
     fun save() {
         val state = _uiState.value
         val bitmap = state.previewBitmap ?: return
@@ -99,13 +132,25 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
                     val modelFile = File(modelsDir, "$uuid.glb")
                     modelFile.writeBytes(TexturedCubeGlbGenerator.generate(bitmap))
 
-                    customMotifRepository.addMotif(
+                    val rawId = customMotifRepository.addMotif(
                         name = state.name.trim(),
                         category = state.category.trim(),
                         shortDescription = state.shortDescription.trim(),
                         imagePath = imageFile.absolutePath,
                         modelPath = modelFile.absolutePath
                     )
+
+                    // The question is keyed to the motif's *combined* id (the
+                    // one Detail/AR/quiz all use), which only exists once the
+                    // row above has been inserted.
+                    if (state.createQuizQuestion) {
+                        customQuizRepository.addQuestion(
+                            prompt = state.questionPrompt.trim(),
+                            options = state.questionOptions.map { it.trim() },
+                            correctOptionIndex = state.questionCorrectOptionIndex,
+                            batikId = customMotifRepository.combinedIdOf(rawId)
+                        )
+                    }
                 }
             }
             _uiState.value = if (result.isSuccess) {

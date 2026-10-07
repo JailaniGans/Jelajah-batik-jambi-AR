@@ -31,7 +31,9 @@ class CustomQuizRepository(private val dao: CustomQuizQuestionDao) {
     suspend fun addQuestion(
         prompt: String,
         options: List<String>,
-        correctOptionIndex: Int
+        correctOptionIndex: Int,
+        /** Combined motif id ([BatikData][com.jelajahbatikjambi.data.model.BatikData] id space) this question is about, or [CUSTOM_QUESTION_BATIK_ID] for a free-standing one. */
+        batikId: Int = CUSTOM_QUESTION_BATIK_ID
     ): Long {
         require(options.size == 4) { "A quiz question needs exactly 4 options" }
         return dao.insert(
@@ -42,6 +44,7 @@ class CustomQuizRepository(private val dao: CustomQuizQuestionDao) {
                 optionC = options[2],
                 optionD = options[3],
                 correctOptionIndex = correctOptionIndex,
+                batikId = batikId,
                 createdAt = System.currentTimeMillis()
             )
         )
@@ -49,7 +52,7 @@ class CustomQuizRepository(private val dao: CustomQuizQuestionDao) {
 }
 
 private fun CustomQuizQuestionEntity.toQuizQuestion() = QuizQuestion(
-    batikId = CUSTOM_QUESTION_BATIK_ID,
+    batikId = batikId,
     prompt = prompt,
     options = listOf(optionA, optionB, optionC, optionD),
     correctOptionIndex = correctOptionIndex

@@ -45,9 +45,11 @@ data class QuizUiState(
  * § user request: "ketika klik mulai kuis pertanyaan sesuai dengan motif apa
  * yang saya scan"), the session is scoped to just that motif via
  * [buildQuizQuestionsForMotif] instead of the general discovered-motifs mix;
- * user-authored questions aren't tied to any motif, so they're left out of a
- * scoped session. Starting the quiz from the Collection screen still gets the
- * general mix ([scopedBatikId] null).
+ * free-standing user-authored questions aren't tied to any motif, so they're
+ * left out — but a custom question *keyed to that motif* (the "buat soal
+ * untuk motif ini" option on Add Motif) joins the scoped session. Starting
+ * the quiz from the Collection screen still gets the general mix
+ * ([scopedBatikId] null), custom questions included.
  */
 class QuizViewModel(application: Application, private val scopedBatikId: Int? = null) : AndroidViewModel(application) {
 
@@ -65,7 +67,12 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
             val questions = if (scopedBatikId != null) {
                 allBatik.firstOrNull { it.id == scopedBatikId }
                     ?.let { buildQuizQuestionsForMotif(it, allBatik) }
-                    .orEmpty()
+                    .orEmpty() +
+                    // User-authored questions tied to exactly this motif (the
+                    // "buat soal untuk motif ini" option on Add Motif) belong
+                    // to a scoped session; untied ones stay out of it.
+                    customQuizRepository.getAllOnceAsQuizQuestions()
+                        .filter { it.batikId == scopedBatikId }
             } else {
                 val discoveredIds = discoveryRepository.discoveredBatikIds.first()
                 val generatedQuestions = buildQuizQuestions(allBatik, discoveredIds)
