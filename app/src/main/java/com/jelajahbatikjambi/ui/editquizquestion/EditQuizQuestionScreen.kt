@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jelajahbatikjambi.ui.common.MotifPicker
 import com.jelajahbatikjambi.ui.common.SoundEffects
 import com.jelajahbatikjambi.ui.common.withClickSound
 import com.jelajahbatikjambi.ui.theme.Dimensions
@@ -96,6 +97,12 @@ fun EditQuizQuestionScreen(questionId: Long, onBack: () -> Unit, onSaved: () -> 
             Text(
                 text = "Perubahan tersimpan di perangkat ini dan tetap ada setelah aplikasi ditutup.",
                 style = MaterialTheme.typography.bodyMedium
+            )
+
+            MotifPicker(
+                motifs = uiState.motifs,
+                selectedBatikId = uiState.selectedBatikId,
+                onBatikIdSelected = viewModel::onMotifSelected
             )
 
             OutlinedTextField(

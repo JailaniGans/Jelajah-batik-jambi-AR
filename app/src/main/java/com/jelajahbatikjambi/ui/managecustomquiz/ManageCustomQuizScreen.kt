@@ -98,6 +98,7 @@ fun ManageCustomQuizScreen(
                     items(uiState.questions, key = { it.id }) { question ->
                         QuestionRow(
                             question = question,
+                            motifName = uiState.motifNames[question.batikId],
                             onEdit = { onEditQuestion(question.id) }.withClickSound(),
                             onDelete = { questionToDelete = question }
                         )
@@ -160,6 +161,7 @@ private fun EmptyState(onAddQuestion: () -> Unit, modifier: Modifier = Modifier)
 @Composable
 private fun QuestionRow(
     question: CustomQuizQuestionEntity,
+    motifName: String?,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -182,6 +184,19 @@ private fun QuestionRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(Dimensions.spacingXs))
+                Text(
+                    // Legacy untied rows (-1) still exist from before ties
+                    // became mandatory; every new question names a motif.
+                    text = if (question.batikId >= 0) {
+                        "Motif: ${motifName ?: "—"}"
+                    } else {
+                        "Tanpa motif (soal lama)"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Text(
                     text = "Jawaban benar: ${question.options()[question.correctOptionIndex]}",
                     style = MaterialTheme.typography.bodySmall,

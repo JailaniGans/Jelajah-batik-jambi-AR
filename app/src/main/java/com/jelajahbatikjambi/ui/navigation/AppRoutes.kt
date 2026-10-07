@@ -6,8 +6,17 @@ object AppRoutes {
     const val COLLECTION = "collection"
     const val ABOUT = "about"
     const val ADD_MOTIF = "add_motif"
-    const val CREATE_QUIZ = "create_quiz"
     const val MANAGE_CUSTOM_QUIZ = "manage_custom_quiz"
+
+    // Same absent-vs-present convention as QUIZ below: no {batikId}
+    // placeholder in the base route, an absent arg (Collection's manage
+    // screen) vs. a present one (created for a just-scanned motif, or from
+    // that motif's edit screen) is told apart by defaultValue = -1.
+    const val CREATE_QUIZ_BATIK_ID_ARG = "batikId"
+    const val CREATE_QUIZ = "create_quiz?$CREATE_QUIZ_BATIK_ID_ARG={$CREATE_QUIZ_BATIK_ID_ARG}"
+
+    fun createQuiz(batikId: Int? = null) =
+        if (batikId != null) "create_quiz?$CREATE_QUIZ_BATIK_ID_ARG=$batikId" else "create_quiz"
 
     const val DETAIL_ARG = "batikId"
     const val DETAIL = "detail/{$DETAIL_ARG}"

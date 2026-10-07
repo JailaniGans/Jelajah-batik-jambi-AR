@@ -1,5 +1,6 @@
 package com.jelajahbatikjambi.ui.quiz
 
+import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,8 +27,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jelajahbatikjambi.ui.common.MotifPicker
 import com.jelajahbatikjambi.ui.common.SoundEffects
 import com.jelajahbatikjambi.ui.common.withClickSound
 import com.jelajahbatikjambi.ui.theme.Dimensions
@@ -35,13 +38,19 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
 /**
  * Lets the user author their own "pilihan ganda" quiz question
  * (§ user request: "opsi untuk buat kuis nya") — a prompt, four options, and
- * which one is correct. Saved questions are folded into every future quiz
- * session alongside the auto-generated "guess the motif" ones.
+ * which one is correct — tied to the motif picked in the form
+ * (§ user request: "menentukan soal yang di buat itu ke motif yang telah di
+ * pilih user"). [batikId] pre-selects the motif when opened from a scoped
+ * quiz or that motif's edit screen. Saved questions are folded into every
+ * future quiz session.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateQuizScreen(onBack: () -> Unit, onSaved: () -> Unit) {
-    val viewModel: CreateQuizViewModel = viewModel()
+fun CreateQuizScreen(batikId: Int? = null, onBack: () -> Unit, onSaved: () -> Unit) {
+    val application = LocalContext.current.applicationContext as Application
+    val viewModel: CreateQuizViewModel = viewModel(
+        factory = CreateQuizViewModel.factory(application, batikId)
+    )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.savedSuccessfully) {
@@ -72,8 +81,14 @@ fun CreateQuizScreen(onBack: () -> Unit, onSaved: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(Dimensions.spacingMd)
         ) {
             Text(
-                text = "Buat soal pilihan ganda Anda sendiri untuk ditambahkan ke sesi kuis.",
+                text = "Buat soal pilihan ganda Anda sendiri, lalu tentukan motif mana yang ingin diujikan.",
                 style = MaterialTheme.typography.bodyMedium
+            )
+
+            MotifPicker(
+                motifs = uiState.motifs,
+                selectedBatikId = uiState.selectedBatikId,
+                onBatikIdSelected = viewModel::onMotifSelected
             )
 
             OutlinedTextField(

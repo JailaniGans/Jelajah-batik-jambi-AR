@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.jelajahbatikjambi.data.model.BatikData
 import com.jelajahbatikjambi.data.repository.CustomQuizRepository
+import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.database.CustomQuizQuestionEntity
 import kotlinx.coroutines.Dispatchers
@@ -21,12 +23,16 @@ data class EditQuizQuestionUiState(
     val prompt: String = "",
     val options: List<String> = listOf("", "", "", ""),
     val correctOptionIndex: Int = 0,
+    /** Every motif in the app (built-in + custom) — the picker's options. */
+    val motifs: List<BatikData> = emptyList(),
+    /** The motif this question is tied to; required — there is no "no motif" option. */
+    val selectedBatikId: Int? = null,
     val isSaving: Boolean = false,
     val error: String? = null,
     val savedSuccessfully: Boolean = false
 ) {
     val canSave: Boolean
-        get() = !isLoading && prompt.isNotBlank() && options.all { it.isNotBlank() }
+        get() = !isLoading && prompt.isNotBlank() && options.all { it.isNotBlank() } && selectedBatikId != null
 }
 
 /**
@@ -45,6 +51,7 @@ class EditQuizQuestionViewModel(
     private val repository = CustomQuizRepository(
         AppDatabase.getInstance(application).customQuizQuestionDao()
     )
+    private val motifRepository = MotifRepository.getInstance(application)
 
     private val _uiState = MutableStateFlow(EditQuizQuestionUiState(questionId = questionId))
     val uiState: StateFlow<EditQuizQuestionUiState> = _uiState.asStateFlow()
@@ -55,6 +62,7 @@ class EditQuizQuestionViewModel(
 
     private fun load() {
         viewModelScope.launch {
+            val motifs = withContext(Dispatchers.IO) { motifRepository.getAllOnce() }
             val entity = withContext(Dispatchers.IO) { repository.getById(questionId) }
             if (entity == null) {
                 _uiState.value = _uiState.value.copy(
@@ -68,7 +76,12 @@ class EditQuizQuestionViewModel(
                 questionId = questionId,
                 prompt = entity.prompt,
                 options = entity.options(),
-                correctOptionIndex = entity.correctOptionIndex
+                correctOptionIndex = entity.correctOptionIndex,
+                motifs = motifs,
+                // A question stored before ties became mandatory (-1), or one
+                // whose motif is gone, starts unselected — the user must
+                // pick a motif before saving.
+                selectedBatikId = entity.batikId.takeIf { id -> motifs.any { it.id == id } }
             )
         }
     }
@@ -84,6 +97,10 @@ class EditQuizQuestionViewModel(
 
     fun onCorrectOptionSelected(index: Int) {
         _uiState.value = _uiState.value.copy(correctOptionIndex = index)
+    }
+
+    fun onMotifSelected(batikId: Int) {
+        _uiState.value = _uiState.value.copy(selectedBatikId = batikId)
     }
 
     fun save() {
@@ -105,7 +122,8 @@ class EditQuizQuestionViewModel(
                             optionB = state.options[1].trim(),
                             optionC = state.options[2].trim(),
                             optionD = state.options[3].trim(),
-                            correctOptionIndex = state.correctOptionIndex
+                            correctOptionIndex = state.correctOptionIndex,
+                            batikId = checkNotNull(state.selectedBatikId)
                         )
                     )
                 }
