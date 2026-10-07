@@ -104,4 +104,27 @@ class QuizScreenComposablesTest {
 
         assert(backClicked)
     }
+
+    @Test
+    fun resultState_shows_play_again_and_invokes_it_without_leaving() {
+        var playAgainClicked = false
+        var backClicked = false
+
+        composeTestRule.setContent {
+            JelajahBatikJambiTheme {
+                ResultState(
+                    score = 3,
+                    total = 4,
+                    onBack = { backClicked = true },
+                    onPlayAgain = { playAgainClicked = true }
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Main Lagi").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Main Lagi").performClick()
+
+        assert(playAgainClicked) { "expected Main Lagi to invoke onPlayAgain" }
+        assert(!backClicked) { "Main Lagi must not also pop the quiz screen" }
+    }
 }

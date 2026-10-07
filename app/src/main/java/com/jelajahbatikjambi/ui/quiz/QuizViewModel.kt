@@ -62,7 +62,19 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
     val uiState: StateFlow<QuizUiState> = _uiState.asStateFlow()
 
     init {
+        load()
+    }
+
+    /**
+     * Builds the question set from scratch. Split out of [init] so "Main
+     * Lagi" can call it again: the fresh read is what re-shuffles the order
+     * and picks up anything the user created or deleted since the session
+     * started, keeping the "stable for the whole session" snapshot rule
+     * intact — it just defines what a *new* session snapshots.
+     */
+    private fun load() {
         viewModelScope.launch {
+            _uiState.value = QuizUiState(isLoading = true)
             val allBatik = motifRepository.getAllOnce()
             val questions = if (scopedBatikId != null) {
                 allBatik.firstOrNull { it.id == scopedBatikId }
@@ -81,6 +93,17 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
             }
             _uiState.value = QuizUiState(isLoading = false, questions = questions)
         }
+    }
+
+    /**
+     * "Main Lagi": a brand-new session with the same scoping — score,
+     * progress and answer state are dropped, and [load] re-reads everything
+     * so the round is freshly shuffled. If the rebuilt set turns out empty
+     * (e.g. the last custom question was deleted mid-session) the UI falls
+     * through to its existing empty state rather than a 0-question quiz.
+     */
+    fun restart() {
+        load()
     }
 
     fun submitAnswer(optionIndex: Int) {

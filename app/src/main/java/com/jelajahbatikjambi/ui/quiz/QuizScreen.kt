@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -88,6 +89,7 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onMa
                     score = uiState.score,
                     total = uiState.questions.size,
                     onBack = onBack,
+                    onPlayAgain = viewModel::restart,
                     modifier = Modifier.fillMaxSize()
                 )
                 else -> QuestionState(
@@ -240,8 +242,20 @@ private fun QuizOptionButton(
     }
 }
 
+/**
+ * Score screen with two exits: "Main Lagi" starts a fresh session (same
+ * scoping, re-shuffled), "Selesai" leaves the quiz. Score sits above both so
+ * the primary action is the replay — [onPlayAgain] has a default only so
+ * existing callers/tests that just care about the score don't have to care.
+ */
 @Composable
-internal fun ResultState(score: Int, total: Int, onBack: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ResultState(
+    score: Int,
+    total: Int,
+    onBack: () -> Unit,
+    onPlayAgain: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier.padding(Dimensions.spacingLg),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -266,6 +280,15 @@ internal fun ResultState(score: Int, total: Int, onBack: () -> Unit, modifier: M
         )
         Spacer(modifier = Modifier.height(Dimensions.spacingLg))
         Button(
+            onClick = onPlayAgain.withClickSound(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(Dimensions.buttonHeight)
+        ) {
+            Text("Main Lagi")
+        }
+        Spacer(modifier = Modifier.height(Dimensions.spacingMd))
+        OutlinedButton(
             onClick = onBack.withClickSound(),
             modifier = Modifier
                 .fillMaxWidth()
