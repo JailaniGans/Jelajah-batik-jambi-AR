@@ -403,7 +403,7 @@ Versi dependency dikelola terpusat melalui **version catalog** di `gradle/libs.v
 | `namespace` dan `applicationId` | `com.jelajahbatikjambi` |
 | `minSdk` | 26 (Android 8.0 Oreo) |
 | `compileSdk` dan `targetSdk` | 37 |
-| `versionCode` dan `versionName` | 4 / 1.2.0 |
+| `versionCode` dan `versionName` | 5 / 1.3.0 |
 | Target bytecode Java | 11 |
 | Build features | `compose = true`, `buildConfig = true` |
 
@@ -724,7 +724,7 @@ Database bernama **`jelajah_batik_jambi.db`**, versi **4**, dengan `exportSchema
 | `CustomQuizQuestionEntity` | `CustomQuizQuestionDao` | Soal kuis buatan pengguna, dengan `optionA` sampai `optionD` plus indeks jawaban benar. |
 | `BatikOverrideEntity` | `BatikOverrideDao` | Overlay hasil edit motif bawaan, dengan `batikId` sebagai primary key. Kolom `null` berarti "tidak diedit", sehingga nilai dari `batik.json` tetap dipakai. |
 
-Migrasi eksplisit disediakan lewat **`MIGRATION_3_4`** (membuat tabel `batik_overrides` dan menambah kolom `meaning`/`history` pada `custom_motifs`), sehingga data penemuan, motif custom, dan soal kuis pengguna **tetap bertahan** saat naik dari versi 3 ke 4. `fallbackToDestructiveMigration(true)` masih dipertahankan sebagai jaring pengaman untuk versi berikutnya, tetapi **setiap kenaikan versi wajib menyertai migrasi eksplisit**, lihat [Catatan dan Batasan](#catatan-dan-batasan).
+Migrasi eksplisit disediakan lewat **`MIGRATION_3_4`** (membuat tabel `batik_overrides` dan menambah kolom `meaning`/`history` pada `custom_motifs`) dan **`MIGRATION_4_5`** (menambah kolom `batikId` pada `custom_quiz_questions`, dengan `DEFAULT -1` agar soal lama tetap dianggap tidak terikat motif), sehingga data penemuan, motif custom, dan soal kuis pengguna **tetap bertahan** saat naik dari versi 3 ke 5. `fallbackToDestructiveMigration(true)` masih dipertahankan sebagai jaring pengaman untuk versi berikutnya, tetapi **setiap kenaikan versi wajib menyertai migrasi eksplisit**, lihat [Catatan dan Batasan](#catatan-dan-batasan).
 
 Hasil edit motif bawaan disimpan sebagai berkas terpisah di `filesDir/edited_images/{batikId}.jpg`, sehingga reset "Kembalikan ke asli" cukup menghapus baris override dan berkas tersebut.
 
@@ -881,7 +881,7 @@ Dokumen spesifikasi asli bernomor §1 sampai §59 **tidak disertakan** dalam rep
 
 - **Konten budaya belum diverifikasi.** `meaning` dan `history` pada motif bawaan masih placeholder. Kuis pun sengaja hanya menguji nama dan deskripsi singkat, bukan kedua field tersebut. Lengkapi dengan referensi budaya Jambi yang dapat dipertanggungjawabkan sebelum rilis.
 - **Signing `release` belum produksi.** Build `release` memakai keystore debug dan optimasi dimatikan, hanya agar bisa di-*install* lokal via `adb`. Ganti dengan konfigurasi signing asli sebelum distribusi.
-- **Migrasi Room sebagian eksplisit.** `MIGRATION_3_4` (v3 → v4) sudah tersedia dan menjaga data pengguna, tetapi `fallbackToDestructiveMigration(true)` masih aktif sebagai fallback. Kenaikan versi berikutnya **wajib** menyertai migrasi eksplisit agar data penemuan, motif custom, dan soal kuis tidak terhapus.
+- **Migrasi Room sebagian eksplisit.** `MIGRATION_3_4` (v3 → v4) dan `MIGRATION_4_5` (v4 → v5) sudah tersedia dan menjaga data pengguna, tetapi `fallbackToDestructiveMigration(true)` masih aktif sebagai fallback. Kenaikan versi berikutnya **wajib** menyertai migrasi eksplisit agar data penemuan, motif custom, dan soal kuis tidak terhapus.
 - **Ukuran fisik diasumsikan konstan 0,20 meter.** Posesi 3D akurat secara relatif, tetapi proporsi terhadap dunia nyata hanya pendekatan karena foto tidak membawa metadata ukuran.
 - **Asumsi geometri kamera.** `solvePnP` dijalankan tanpa koreksi distorsi lens. Pada kamera dengan distorsi kuat, akurasi pose menurun.
 - **Reticle adalah aproksimasi.** Kotak 4-sudut mengasumsikan preview memenuhi frame secara seragam, sehingga dapat sedikit menyimpang dari tepi motif.
