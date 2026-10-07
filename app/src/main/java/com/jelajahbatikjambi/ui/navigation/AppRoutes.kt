@@ -7,6 +7,7 @@ object AppRoutes {
     const val ABOUT = "about"
     const val ADD_MOTIF = "add_motif"
     const val CREATE_QUIZ = "create_quiz"
+    const val MANAGE_CUSTOM_QUIZ = "manage_custom_quiz"
 
     const val DETAIL_ARG = "batikId"
     const val DETAIL = "detail/{$DETAIL_ARG}"
@@ -17,6 +18,11 @@ object AppRoutes {
     const val EDIT_MOTIF = "edit_motif/{$EDIT_MOTIF_ARG}"
 
     fun editMotif(batikId: Int) = "edit_motif/$batikId"
+
+    const val EDIT_QUIZ_ARG = "questionId"
+    const val EDIT_QUIZ = "edit_quiz_question/{$EDIT_QUIZ_ARG}"
+
+    fun editQuizQuestion(questionId: Long) = "edit_quiz_question/$questionId"
 
     // No {batikId} placeholder in the base route: NavType.IntType arguments
     // can't be declared nullable, so an absent query param (Collection's

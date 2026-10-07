@@ -21,6 +21,8 @@ import com.jelajahbatikjambi.ui.editmotif.EditMotifScreen
 import com.jelajahbatikjambi.ui.home.HomeScreen
 import com.jelajahbatikjambi.ui.quiz.CreateQuizScreen
 import com.jelajahbatikjambi.ui.quiz.QuizScreen
+import com.jelajahbatikjambi.ui.editquizquestion.EditQuizQuestionScreen
+import com.jelajahbatikjambi.ui.managecustomquiz.ManageCustomQuizScreen
 
 private const val TRANSITION_DURATION_MS = 200
 
@@ -83,11 +85,30 @@ fun AppNavHost(
             QuizScreen(
                 batikId = batikId.takeIf { it >= 0 },
                 onBack = { navController.popBackStack() },
-                onCreateQuiz = { navController.navigate(AppRoutes.CREATE_QUIZ) }
+                onCreateQuiz = { navController.navigate(AppRoutes.CREATE_QUIZ) },
+                onManageCustomQuiz = { navController.navigate(AppRoutes.MANAGE_CUSTOM_QUIZ) }
             )
         }
         composable(AppRoutes.CREATE_QUIZ) {
             CreateQuizScreen(
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
+            )
+        }
+        composable(AppRoutes.MANAGE_CUSTOM_QUIZ) {
+            ManageCustomQuizScreen(
+                onBack = { navController.popBackStack() },
+                onAddQuestion = { navController.navigate(AppRoutes.CREATE_QUIZ) },
+                onEditQuestion = { questionId -> navController.navigate(AppRoutes.editQuizQuestion(questionId)) }
+            )
+        }
+        composable(
+            route = AppRoutes.EDIT_QUIZ,
+            arguments = listOf(navArgument(AppRoutes.EDIT_QUIZ_ARG) { type = NavType.LongType })
+        ) { backStackEntry ->
+            val questionId = backStackEntry.arguments?.getLong(AppRoutes.EDIT_QUIZ_ARG) ?: return@composable
+            EditQuizQuestionScreen(
+                questionId = questionId,
                 onBack = { navController.popBackStack() },
                 onSaved = { navController.popBackStack() }
             )

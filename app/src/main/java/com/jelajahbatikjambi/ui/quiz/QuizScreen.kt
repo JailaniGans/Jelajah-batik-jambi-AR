@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,7 +51,7 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit) {
+fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onManageCustomQuiz: () -> Unit) {
     val application = LocalContext.current.applicationContext as android.app.Application
     val viewModel: QuizViewModel = viewModel(factory = QuizViewModel.factory(application, batikId))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -65,6 +66,9 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit) {
                     }
                 },
                 actions = {
+                    IconButton(onClick = onManageCustomQuiz.withClickSound()) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Kelola Soal Kuis")
+                    }
                     IconButton(onClick = onCreateQuiz.withClickSound()) {
                         Icon(Icons.Filled.Add, contentDescription = "Buat Soal Kuis")
                     }
