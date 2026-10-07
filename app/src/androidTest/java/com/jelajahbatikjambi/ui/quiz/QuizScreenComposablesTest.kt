@@ -12,10 +12,10 @@ import org.junit.Test
 /**
  * Tests the stateless quiz composables directly with hand-built [QuizUiState]
  * values, rather than driving [QuizScreen] end-to-end through [QuizViewModel].
- * The ViewModel reads persisted Room discovery state, which `adb install -r`
- * keeps across app installs — an end-to-end test asserting "nothing
- * discovered yet" would pass or fail depending on what earlier manual
- * testing left in the database, not on the code under test.
+ * The ViewModel reads persisted Room question state, which `adb install -r`
+ * keeps across app installs — an end-to-end test asserting "no questions
+ * created yet" would pass or fail depending on what earlier manual testing
+ * left in the database, not on the code under test.
  */
 class QuizScreenComposablesTest {
 
@@ -30,14 +30,27 @@ class QuizScreenComposablesTest {
     )
 
     @Test
-    fun emptyState_shows_prompt_to_explore_first() {
+    fun emptyState_shows_prompt_to_create_a_question() {
         composeTestRule.setContent {
             JelajahBatikJambiTheme {
                 EmptyState()
             }
         }
 
-        composeTestRule.onNodeWithText("Belum ada motif untuk dikuiskan").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Belum ada soal kuis").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Tekan tombol + di atas untuk membuat soal kuis pertama Anda, lalu pilih motif yang ingin diujikan.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun emptyState_scoped_to_a_motif_offers_creating_a_question_for_it() {
+        composeTestRule.setContent {
+            JelajahBatikJambiTheme {
+                EmptyState(batikId = 3)
+            }
+        }
+
+        composeTestRule.onNodeWithText("Belum ada soal untuk motif ini").assertIsDisplayed()
     }
 
     @Test

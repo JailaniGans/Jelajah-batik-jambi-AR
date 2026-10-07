@@ -80,16 +80,16 @@ fun CollectionScreen(
                     totalCount = uiState.totalCount,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (uiState.discovered.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(Dimensions.spacingMd))
-                    Button(
-                        onClick = onStartQuiz.withClickSound(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(Dimensions.buttonHeight)
-                    ) {
-                        Text("Mulai Kuis")
-                    }
+                Spacer(modifier = Modifier.height(Dimensions.spacingMd))
+                // Always available: the session is made of the user's own
+                // questions, so it no longer depends on what's discovered.
+                Button(
+                    onClick = onStartQuiz.withClickSound(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(Dimensions.buttonHeight)
+                ) {
+                    Text("Mulai Kuis")
                 }
             }
 

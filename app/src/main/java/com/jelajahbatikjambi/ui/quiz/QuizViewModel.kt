@@ -6,17 +6,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jelajahbatikjambi.data.model.QuizQuestion
-import com.jelajahbatikjambi.data.model.buildQuizQuestions
-import com.jelajahbatikjambi.data.model.buildQuizQuestionsForMotif
 import com.jelajahbatikjambi.data.repository.CustomQuizRepository
-import com.jelajahbatikjambi.data.repository.DiscoveryRepository
-import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.ui.common.SoundEffects
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class QuizUiState(
@@ -32,31 +27,27 @@ data class QuizUiState(
 
 /**
  * Drives a single quiz session. Questions are snapshotted once at start from
- * whatever's discovered at that moment (not a live-reactive Flow) so the
- * question set/shuffle stays stable for the whole session even if discovery
- * state changes elsewhere.
+ * whatever's stored at that moment (not a live-reactive Flow) so the
+ * question set/shuffle stays stable for the whole session even if
+ * questions are edited elsewhere.
  *
- * Combines auto-generated "guess the motif" questions (built-in + custom
- * motifs alike) with any questions the user authored themselves via
- * [CreateQuizScreen] (§ user request: "opsi untuk buat kuis nya") — shuffled
- * together into one session rather than run as two separate quizzes.
+ * The set is exactly what the user authored themselves via
+ * [CreateQuizScreen] (§ user request: "opsi untuk buat kuis nya") — the app
+ * generates no questions of its own, so this table is the whole question
+ * set (§ user request: "hapus soal built in saja tidak dengan motif nya").
  *
  * When started right after scanning a motif in AR ([scopedBatikId] non-null —
  * § user request: "ketika klik mulai kuis pertanyaan sesuai dengan motif apa
- * yang saya scan"), the session is scoped to just that motif via
- * [buildQuizQuestionsForMotif] instead of the general discovered-motifs mix;
- * free-standing user-authored questions aren't tied to any motif, so they're
- * left out — but a custom question *keyed to that motif* (the "buat soal
- * untuk motif ini" option on Add Motif) joins the scoped session. Starting
- * the quiz from the Collection screen still gets the general mix
- * ([scopedBatikId] null), custom questions included.
+ * yang saya scan"), the session holds only the questions keyed to that
+ * motif — the "buat soal untuk motif ini" option on Add Motif, or the motif
+ * picker on Create Quiz. Starting the quiz from the Collection screen
+ * ([scopedBatikId] null) gets every stored question, whatever motif each is
+ * tied to.
  */
 class QuizViewModel(application: Application, private val scopedBatikId: Int? = null) : AndroidViewModel(application) {
 
-    private val database = AppDatabase.getInstance(application)
-    private val discoveryRepository = DiscoveryRepository(database.discoveryDao())
-    private val motifRepository = MotifRepository.getInstance(application)
-    private val customQuizRepository = CustomQuizRepository(database.customQuizQuestionDao())
+    private val customQuizRepository =
+        CustomQuizRepository(AppDatabase.getInstance(application).customQuizQuestionDao())
 
     private val _uiState = MutableStateFlow(QuizUiState())
     val uiState: StateFlow<QuizUiState> = _uiState.asStateFlow()
@@ -75,24 +66,25 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
     private fun load() {
         viewModelScope.launch {
             _uiState.value = QuizUiState(isLoading = true)
-            val allBatik = motifRepository.getAllOnce()
-            val questions = if (scopedBatikId != null) {
-                allBatik.firstOrNull { it.id == scopedBatikId }
-                    ?.let { buildQuizQuestionsForMotif(it, allBatik) }
-                    .orEmpty() +
-                    // User-authored questions tied to exactly this motif (the
-                    // "buat soal untuk motif ini" option on Add Motif) belong
-                    // to a scoped session; untied ones stay out of it.
-                    customQuizRepository.getAllOnceAsQuizQuestions()
-                        .filter { it.batikId == scopedBatikId }
-            } else {
-                val discoveredIds = discoveryRepository.discoveredBatikIds.first()
-                val generatedQuestions = buildQuizQuestions(allBatik, discoveredIds)
-                val customQuestions = customQuizRepository.getAllOnceAsQuizQuestions()
-                (generatedQuestions + customQuestions).shuffled()
-            }
+            // User-authored questions only, tied to this motif for a scoped
+            // session; every stored question otherwise.
+            val questions = customQuizRepository.getAllOnceAsQuizQuestions()
+                .filter { scopedBatikId == null || it.batikId == scopedBatikId }
+                .shuffled()
             _uiState.value = QuizUiState(isLoading = false, questions = questions)
         }
+    }
+
+    /**
+     * Called when the quiz screen returns to the foreground. An empty
+     * snapshot — the usual case for a first visit, or right after the user
+     * created a question from the screen's + button — is rebuilt so the new
+     * question shows up; a session that already has questions keeps its
+     * stable snapshot untouched.
+     */
+    fun reloadIfEmpty() {
+        val state = _uiState.value
+        if (!state.isLoading && state.questions.isEmpty()) load()
     }
 
     /**

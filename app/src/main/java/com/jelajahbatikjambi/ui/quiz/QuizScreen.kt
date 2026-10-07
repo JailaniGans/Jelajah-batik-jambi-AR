@@ -36,19 +36,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jelajahbatikjambi.ui.common.withClickSound
 import com.jelajahbatikjambi.ui.theme.Dimensions
 
 /**
- * Multiple-choice "guess the motif" quiz (§ user request). With no [batikId]
- * (started from the Collection screen), scoped to all motifs discovered via
- * AR so far. With [batikId] set — started right after scanning that motif in
- * AR (§ user request: "ketika klik mulai kuis pertanyaan sesuai dengan motif
- * apa yang saya scan") — scoped to just that one motif instead. See
- * [buildQuizQuestions] for why this quizzes on name<->description matching
- * rather than the unverified meaning/history fields.
+ * Multiple-choice quiz (§ user request). With no [batikId] (started from the
+ * Collection screen) the session holds every question the user has authored
+ * ([CreateQuizScreen]); the app generates none of its own. With [batikId]
+ * set — started right after scanning that motif in AR (§ user request:
+ * "ketika klik mulai kuis pertanyaan sesuai dengan motif apa yang saya
+ * scan") — it holds only the questions keyed to that motif.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +56,14 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onMa
     val application = LocalContext.current.applicationContext as android.app.Application
     val viewModel: QuizViewModel = viewModel(factory = QuizViewModel.factory(application, batikId))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // A session snapshotted empty (first visit, or right after the user
+    // created a question from the + button and came back) picks up the new
+    // question; a session already in progress keeps its snapshot.
+    LifecycleResumeEffect(Unit) {
+        viewModel.reloadIfEmpty()
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {
@@ -84,7 +92,10 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onMa
         ) {
             when {
                 uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
-                uiState.questions.isEmpty() -> EmptyState(modifier = Modifier.fillMaxSize())
+                uiState.questions.isEmpty() -> EmptyState(
+                    batikId = batikId,
+                    modifier = Modifier.fillMaxSize()
+                )
                 uiState.isFinished -> ResultState(
                     score = uiState.score,
                     total = uiState.questions.size,
@@ -116,19 +127,23 @@ private fun LoadingState(modifier: Modifier = Modifier) {
 // across runs (adb install -r keeps app data, so "nothing discovered yet"
 // isn't reliably true on a real device after earlier manual testing).
 @Composable
-internal fun EmptyState(modifier: Modifier = Modifier) {
+internal fun EmptyState(batikId: Int? = null, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(Dimensions.spacingLg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Belum ada motif untuk dikuiskan",
+            text = if (batikId != null) "Belum ada soal untuk motif ini" else "Belum ada soal kuis",
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Jelajahi motif Batik Jambi menggunakan AR Scanner terlebih dahulu, lalu kembali ke sini untuk menguji pengetahuan Anda.",
+            text = if (batikId != null) {
+                "Tekan tombol + di atas untuk membuat soal untuk motif ini — pilihannya sudah terisi otomatis."
+            } else {
+                "Tekan tombol + di atas untuk membuat soal kuis pertama Anda, lalu pilih motif yang ingin diujikan."
+            },
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
