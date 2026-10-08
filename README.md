@@ -424,7 +424,7 @@ Versi dependency dikelola terpusat melalui **version catalog** di `gradle/libs.v
 | `namespace` dan `applicationId` | `com.jelajahbatikjambi` |
 | `minSdk` | 26 (Android 8.0 Oreo) |
 | `compileSdk` dan `targetSdk` | 37 |
-| `versionCode` dan `versionName` | 6 / 1.4.0 |
+| `versionCode` dan `versionName` | 7 / 1.4.1 |
 | Target bytecode Java | 11 |
 | Build features | `compose = true`, `buildConfig = true` |
 

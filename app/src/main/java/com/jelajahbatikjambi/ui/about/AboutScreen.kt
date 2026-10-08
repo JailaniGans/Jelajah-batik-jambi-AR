@@ -60,7 +60,7 @@ fun AboutScreen(onBack: () -> Unit) {
 
             HorizontalDivider()
 
-            AboutInfoRow(label = "Versi Aplikasi", value = "1.4.0")
+            AboutInfoRow(label = "Versi Aplikasi", value = "1.4.1")
             AboutInfoRow(label = "Pengembang", value = "Jelajah Batik Jambi Team")
             AboutInfoRow(label = "Lisensi", value = "Hak Cipta Dilindungi")
             AboutInfoRow(
