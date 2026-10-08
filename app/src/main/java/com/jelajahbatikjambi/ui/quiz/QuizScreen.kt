@@ -57,11 +57,12 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onMa
     val viewModel: QuizViewModel = viewModel(factory = QuizViewModel.factory(application, batikId))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // A session snapshotted empty (first visit, or right after the user
-    // created a question from the + button and came back) picks up the new
-    // question; a session already in progress keeps its snapshot.
+    // Coming back from the "+" create-question form or the manage screen: a
+    // stored question set that changed while away rebuilds the session, so a
+    // newly added question is really in the quiz; an untouched session keeps
+    // its snapshot (shuffle, score, progress).
     LifecycleResumeEffect(Unit) {
-        viewModel.reloadIfEmpty()
+        viewModel.reloadIfChanged()
         onPauseOrDispose { }
     }
 

@@ -263,7 +263,7 @@ flowchart TD
     CQ --> VAL{"Prompt, 4 opsi, dan motif terpilih?"}
     VAL -->|Belum| CQ
     VAL -->|Ya| SAVED["Simpan CustomQuizQuestionEntity ke Room — batikId wajib"]
-    SAVED --> BACK["popBackStack — sesi kosong otomatis ter-refresh lewat LifecycleResumeEffect"]
+    SAVED --> BACK["popBackStack — LifecycleResumeEffect membandingkan soal tersimpan dengan snapshot; berbeda = sesi dibangun ulang"]
 ```
 
 ### 5. Alur Tambah Motif (Milik Pengguna)

@@ -29,7 +29,12 @@ data class QuizUiState(
  * Drives a single quiz session. Questions are snapshotted once at start from
  * whatever's stored at that moment (not a live-reactive Flow) so the
  * question set/shuffle stays stable for the whole session even if
- * questions are edited elsewhere.
+ * questions are edited elsewhere — *unless* the stored set itself changes
+ * while the screen is in the background, which is exactly what happens when
+ * the user leaves through the screen's "+" or "Kelola Soal" button to add a
+ * question: [reloadIfChanged] then rebuilds the session so the new question
+ * is actually in the quiz (§ user request: "soal yang sudah ditambahkan
+ * tidak muncul di kuis").
  *
  * The set is exactly what the user authored themselves via
  * [CreateQuizScreen] (§ user request: "opsi untuk buat kuis nya") — the app
@@ -76,15 +81,28 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
     }
 
     /**
-     * Called when the quiz screen returns to the foreground. An empty
-     * snapshot — the usual case for a first visit, or right after the user
-     * created a question from the screen's + button — is rebuilt so the new
-     * question shows up; a session that already has questions keeps its
-     * stable snapshot untouched.
+     * Called when the quiz screen returns to the foreground — the user just
+     * came back from the "+" create-question form or from the manage screen.
+     * The stored question set is read fresh and compared with this session's
+     * snapshot: when the two match, nothing changed, so the session carries
+     * on untouched (same shuffle, same score, same progress); when they
+     * differ — a question was added, edited or deleted while away — the
+     * session is rebuilt from that read, so a newly added question shows up
+     * immediately instead of only after "Main Lagi".
      */
-    fun reloadIfEmpty() {
-        val state = _uiState.value
-        if (!state.isLoading && state.questions.isEmpty()) load()
+    fun reloadIfChanged() {
+        // A load is already in flight; it reads whatever is stored by the time
+        // it runs, so this call could only risk overwriting it with a staler set.
+        if (_uiState.value.isLoading) return
+        viewModelScope.launch {
+            val stored = customQuizRepository.getAllOnceAsQuizQuestions()
+                .filter { scopedBatikId == null || it.batikId == scopedBatikId }
+            val current = _uiState.value
+            // Same guard as above, re-checked because a load may have started
+            // while this read was in flight.
+            if (current.isLoading || hasSameQuestions(current.questions, stored)) return@launch
+            _uiState.value = QuizUiState(isLoading = false, questions = stored.shuffled())
+        }
     }
 
     /**
@@ -130,4 +148,20 @@ class QuizViewModel(application: Application, private val scopedBatikId: Int? = 
                     QuizViewModel(application, scopedBatikId) as T
             }
     }
+}
+
+/**
+ * Multiset comparison of two question sets: order never matters — sessions
+ * are shuffled anyway — but duplicate rows do, so adding a second question
+ * with the same wording still counts as the change [QuizViewModel.reloadIfChanged]
+ * has to pick up.
+ */
+private fun hasSameQuestions(a: List<QuizQuestion>, b: List<QuizQuestion>): Boolean {
+    if (a.size != b.size) return false
+    val unmatched = a.groupingBy { it }.eachCount().toMutableMap()
+    for (question in b) {
+        val left = unmatched[question] ?: return false
+        if (left == 1) unmatched.remove(question) else unmatched[question] = left - 1
+    }
+    return true
 }
