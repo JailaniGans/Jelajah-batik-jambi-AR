@@ -94,7 +94,16 @@ fun CollectionScreen(
             }
 
             if (uiState.discovered.isEmpty()) {
-                EmptyCollectionMessage(modifier = Modifier.fillMaxSize())
+                if (uiState.totalCount == 0) {
+                    // Fresh start: the app ships with no bundled motifs, so
+                    // everything comes from the user's own Tambah Motif flow.
+                    EmptyCollectionMessage(
+                        onAddMotif = onAddMotif,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    NoDiscoveryYetMessage(modifier = Modifier.fillMaxSize())
+                }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -116,7 +125,11 @@ fun CollectionScreen(
 private fun DiscoveryProgress(discoveredCount: Int, totalCount: Int, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(
-            text = "$discoveredCount dari $totalCount motif ditemukan",
+            text = if (totalCount == 0) {
+                "Belum ada motif di koleksi"
+            } else {
+                "$discoveredCount dari $totalCount motif ditemukan"
+            },
             style = MaterialTheme.typography.titleMedium
         )
         if (totalCount > 0) {
@@ -131,7 +144,32 @@ private fun DiscoveryProgress(discoveredCount: Int, totalCount: Int, modifier: M
 }
 
 @Composable
-private fun EmptyCollectionMessage(modifier: Modifier = Modifier) {
+private fun EmptyCollectionMessage(onAddMotif: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(Dimensions.spacingLg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Koleksi masih kosong",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = "Aplikasi mulai tanpa motif bawaan. Tambahkan motif batik pertamamu — foto motifnya didaftarkan untuk dipindai di AR, model 3D dibuat otomatis, dan soal kuis bisa langsung ditautkan ke motif tersebut.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(Dimensions.spacingLg))
+        Button(onClick = onAddMotif.withClickSound()) {
+            Text("Tambahkan Motif Pertama")
+        }
+    }
+}
+
+/** Motif sudah ada, tetapi belum ada satu pun yang dipindai lewat AR. */
+@Composable
+private fun NoDiscoveryYetMessage(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(Dimensions.spacingLg),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -143,7 +181,7 @@ private fun EmptyCollectionMessage(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Jelajahi motif Batik Jambi menggunakan AR Scanner untuk mengisi koleksi ini.",
+            text = "Arahkan kamera AR ke motif yang sudah kamu tambahkan untuk mengisi koleksi ini.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )

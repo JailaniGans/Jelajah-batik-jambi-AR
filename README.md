@@ -4,7 +4,7 @@ Aplikasi Android berbasis **Augmented Reality** untuk mengenal, menjelajah, dan 
 
 Pengguna mengarahkan kamera ke foto motif batik, lalu aplikasi **mendeteksi motif tersebut secara langsung**, menampilkan **model 3D** di atasnya, membuka **informasi motif**, dan menawarkan **kuis** singkat. Setiap motif yang berhasil dipindai otomatis tercatat sebagai **"ditemukan"** dan terbuka di menu Koleksi.
 
-> **Status konten:** field `meaning` dan `history` pada data motif bawaan masih berupa *placeholder* yang menyatakan konten belum diverifikasi. Teks kultural ini sengaja tidak diisi dengan dugaan, dan kuis pun tidak mengujinya. Lengkapi hanya setelah diverifikasi dengan saksi atau referensi budaya Jambi yang sahih.
+> **Status konten:** aplikasi **tidak lagi membawa motif bawaan** — `assets/data/batik.json` dikosongkan dan seluruh motif didaftarkan pengguna lewat Tambah Motif. Konten budaya (`meaning`/`history`) motif buatan pengguna masih berupa *placeholder* yang menyatakan belum diverifikasi; teks kultural sengaja tidak diisi dengan dugaan, dan kuis pun tidak mengujinya.
 
 ---
 
@@ -47,7 +47,7 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 | **Masalah** | Media edukasi batik yang umum berupa foto dan teks statis kurang mendorong pengguna mengenal motif satu per satu dan mengingatnya kembali. |
 | **Solusi** | Mengubah motif menjadi titik pindai AR: motif asli dikenali kamera, ditampilkan dalam 3D, lalu pengguna diajak mengumpulkan motif dan menguji pemahamannya lewat kuis. |
 | **Sasaran pengguna** | Siswa/pelajar, pengunjung museum atau pameran, dan umum yang ingin mengenal batik Jambi. |
-| **Model konten** | Empat motif bawaan dari `batik.json` ditambah motif buatan pengguna; keduanya dapat diedit langsung dari aplikasi dan tersimpan permanen di perangkat. |
+| **Model konten** | Tanpa motif bawaan — `batik.json` kosong; seluruh motif adalah buatan pengguna (foto → model 3D dibuat on-device → target AR) dan dapat diedit langsung dari aplikasi, tersimpan permanen di perangkat. |
 
 ### Fitur dan kebutuhan yang dijawab
 
@@ -113,17 +113,17 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 
 ### 📚 Koleksi Batik
 
-- Daftar motif bawaan dan motif buatan pengguna, dengan penanda **ditemukan** atau belum.
-- Motif yang belum ditemukan masih terlihat sebagai kunci, memberi tujuan untuk terus memindai.
+- Daftar motif **buatan pengguna** — aplikasi mulai tanpa motif bawaan (koleksi kosong, dipandu tombol **Tambahkan Motif Pertama**).
+- Motif yang sudah dipindai ditandai **ditemukan**; yang belum hanya muncul begitu berhasil dipindai.
 - Navigasi ke halaman detail, dan akses kuis umum — tombol **Mulai Kuis** selalu tersedia, tidak menunggu motif ditemukan.
 
 ### 🎓 Kuis
 
-- Seluruh soal **ditulis pengguna sendiri** — aplikasi tidak lagi membuat soal otomatis. Mulai dari halaman Kuis (ikon **+**) atau dari layar Edit Motif.
+- Seluruh soal **ditulis pengguna sendiri** — aplikasi tidak lagi membuat soal otomatis. Soal dibuat dari halaman Kuis (ikon **+**), dari layar Edit Motif, atau saat **Tambah Motif** (bagian soal tercentang otomatis, lihat di bawah).
 - **Mode motif** (dari AR): hanya soal yang terikat ke motif yang sedang dipindai.
 - **Mode umum** (dari Koleksi): semua soal buatan pengguna, di-*shuffle*. Tombol **Mulai Kuis** selalu tersedia, tidak menunggu motif ditemukan.
 - **Setiap soal wajib menentukan motif** lewat dropdown pilihan (bawaan + custom) saat dibuat maupun diedit; soal lama tanpa motif wajib memilih motif saat diedit berikutnya.
-- **Kelola soal**: daftar soal tampil di layar **Kelola Soal Kuis** (dari ikon kelola di bilah atas Kuis) dan di **Edit Motif** — lengkap dengan Edit, Hapus (dialog konfirmasi), dan Tambah Soal untuk motif tersebut.
+- **Kelola soal**: daftar soal tampil di layar **Kelola Soal Kuis** (dari ikon kelola di bilah atas Kuis) dan di **Edit Motif** — lengkap dengan Edit, Hapus (dialog konfirmasi), dan Tambah Soal untuk motif tersebut. Di layar **Kelola Soal Kuis** juga ada tombol **Hapus Semua Soal** (dialog konfirmasi) untuk mengosongkan seluruh kuis sekaligus.
 - Umpan balik benar/salah lewat **ikon + warna** (bukan warna saja), dilengkapi efek suara; layar hasil punya tombol **Main Lagi**.
 
 ### 🖼️ Tambah Motif
@@ -131,6 +131,7 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 - Pilih foto dari galeri (tanpa izin penyimpanan, memakai `ActivityResultContracts.GetContent`).
 - Isi nama, kategori, dan deskripsi singkat.
 - Aplikasi **membuat model 3D kubus bertekstur secara on-device** dari foto tersebut.
+- Bagian **Buat soal kuis untuk motif ini** **tercentang otomatis** — setiap motif baru diiringi soal yang ditulis pengguna; lepas centang untuk melewatinya.
 - Motif baru langsung menjadi target yang dapat dipindai di AR **tanpa perlu restart**.
 
 ### ✏️ Edit Motif
@@ -367,7 +368,7 @@ stateDiagram-v2
 
 1. Dari **Koleksi**, tekan **Tambah Motif**.
 2. Pilih foto motif dari galeri.
-3. Isi nama, kategori, dan deskripsi singkat.
+3. Isi nama, kategori, dan deskripsi singkat. Bagian **Buat soal kuis untuk motif ini** sudah tercentang — isi pertanyaan, 4 pilihan, dan tandai jawaban yang benar (bisa dilepas centang untuk melewati).
 4. Tekan **Simpan**; aplikasi membuat model 3D secara otomatis.
 5. Motif baru langsung muncul di Koleksi dan dapat langsung dipindai di AR.
 
@@ -521,7 +522,7 @@ JelajahBatikJambi/
 │       ├── main/
 │       │   ├── AndroidManifest.xml
 │       │   ├── assets/
-│       │   │   ├── data/batik.json         # metadata motif bawaan
+│       │   │   ├── data/batik.json         # metadata motif (saat ini kosong — tanpa motif bawaan)
 │       │   │   ├── images/                 # foto motif, sekaligus target deteksi
 │       │   │   └── models/                 # model 3D .glb per motif
 │       │   ├── java/com/jelajahbatikjambi/
@@ -662,23 +663,13 @@ Transformasi pengguna dikomposisikan **di atas** pose hasil tracking dengan rumu
 
 ### Struktur `assets/data/batik.json`
 
-Array berisi empat motif bawaan:
+Kosong — `[]`. Aplikasi **tidak lagi membawa motif bawaan**: seluruh motif datang dari alur **Tambah Motif** milik pengguna (foto → model 3D dibuat on-device → target AR → bisa langsung dibuatkan soal kuis). Format array tetap dipertahankan agar struktur kompatibel bila kelak developer ingin menyuntikkan motif bawaan lagi:
 
 ```json
-[
-  {
-    "id": 1,
-    "markerId": 0,
-    "name": "Angso Duo",
-    "category": "Motif Batik Jambi",
-    "shortDescription": "...",
-    "meaning": "...",
-    "history": "...",
-    "imagePath": "images/angso_duo.jpeg",
-    "modelPath": "models/motif_angso_duo.glb"
-  }
-]
+[]
 ```
+
+Bila diisi kembali, setiap entri memakai skema berikut (sama dengan yang dipakai motif custom):
 
 | Field | Tipe | Keterangan |
 |---|---|---|
@@ -689,24 +680,26 @@ Array berisi empat motif bawaan:
 | `imagePath` | string nullable | Relatif terhadap `assets/`, dipakai sebagai gambar 2D sekaligus target deteksi |
 | `modelPath` | string nullable | Relatif terhadap `assets/`, dimuat oleh Filament |
 
-Motif bawaan saat ini adalah **Angso Duo**, **Tampuk Manggis**, **Durian Pecah**, dan **Kapal Sanggat**.
+Saat ini **tidak ada motif bawaan** — seluruh koleksi dimulai dari nol dan diisi pengguna.
 
 ### Folder di luar modul `app`
 
 | Folder | Isi | Peran |
 |---|---|---|
 | `batik_collections/` | 6 foto motif sumber | Referensi dan dokumentasi materi visual |
-| `markers_for_printing/` | 4 marker ArUco, satu per motif bawaan | Alternatif cetak untuk alur `ArucoDetector` |
+| `markers_for_printing/` | Marker ArUco cetak dari era motif bawaan (tidak lagi didaftarkan aplikasi) | Peninggalan dari iterasi awal, kini tidak terpakai |
 
 ---
 
 ## Menambah Motif
 
-### Menambah motif bawaan sebagai developer
+### Menambah motif bawaan (opsional, sebagai developer)
 
 1. Taruh foto motif ke `app/src/main/assets/images/` dan model 3D `.glb` ke `app/src/main/assets/models/`.
-2. Tambahkan entri baru di `app/src/main/assets/data/batik.json` dengan `id` dan `markerId` unik.
+2. Tambahkan entri baru di `app/src/main/assets/data/batik.json` dengan `id` dan `markerId` unik (jangan sampai bentrok dengan offset motif custom `1000+`).
 3. Build ulang. Tidak ada kode yang perlu diubah, karena deteksi AR, Koleksi, Detail, dan Kuis membaca daftar yang sama.
+
+> Saat ini daftar sengaja dikosongkan: aplikasi mulai tanpa motif bawaan, dan seluruh motif didaftarkan pengguna lewat **Tambah Motif** (foto → model 3D → target AR → soal kuis).
 
 > **Tips:** foto target sebaiknya beresolusi wajar, pencahayaan merata, dan tidak terlalu ramai agar ORB dan RANSAC menghasilkan cukup inlier. Motif dengan tekstur sangat berulang, misalnya garis tipis rapat, lebih sulit terdeteksi.
 
@@ -914,7 +907,7 @@ Dokumen spesifikasi asli bernomor §1 sampai §59 **tidak disertakan** dalam rep
 
 ## Catatan dan Batasan
 
-- **Konten budaya belum diverifikasi.** `meaning` dan `history` pada motif bawaan masih placeholder. Kuis pun sengaja hanya menguji nama dan deskripsi singkat, bukan kedua field tersebut. Lengkapi dengan referensi budaya Jambi yang dapat dipertanggungjawabkan sebelum rilis.
+- **Konten budaya belum diverifikasi.** Aplikasi tidak lagi membawa motif bawaan; `meaning` dan `history` motif buatan pengguna masih *placeholder* sampai pengguna mengisinya di layar Edit. Kuis pun sengaja hanya menguji nama dan deskripsi singkat, bukan kedua field tersebut.
 - **Signing `release` belum produksi.** Build `release` memakai keystore debug dan optimasi dimatikan, hanya agar bisa di-*install* lokal via `adb`. Ganti dengan konfigurasi signing asli sebelum distribusi.
 - **Migrasi Room sebagian eksplisit.** `MIGRATION_3_4` (v3 → v4) dan `MIGRATION_4_5` (v4 → v5) sudah tersedia dan menjaga data pengguna, tetapi `fallbackToDestructiveMigration(true)` masih aktif sebagai fallback. Kenaikan versi berikutnya **wajib** menyertai migrasi eksplisit agar data penemuan, motif custom, dan soal kuis tidak terhapus.
 - **Ukuran fisik diasumsikan konstan 0,20 meter.** Posesi 3D akurat secara relatif, tetapi proporsi terhadap dunia nyata hanya pendekatan karena foto tidak membawa metadata ukuran.

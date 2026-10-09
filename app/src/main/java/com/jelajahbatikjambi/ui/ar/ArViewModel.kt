@@ -125,6 +125,15 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
     private val allMotifs: StateFlow<List<BatikData>> = motifRepository.allMotifs
         .stateIn(viewModelScope, SharingStarted.Eagerly, motifRepository.builtInMotifs)
 
+    /**
+     * Whether at least one motif is registered for scanning. On a fresh
+     * install there is nothing to detect (no bundled motifs anymore), so the
+     * AR screen says so instead of pointing the user at invisible targets.
+     */
+    val hasRegisteredMotifs: StateFlow<Boolean> = allMotifs
+        .map { it.isNotEmpty() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     /** The last confirmed marker's [BatikData] — drives the AR panel and quiz shortcut (§9, §12). */
     val detectedBatik: StateFlow<BatikData?> = combine(stickyMarkerId, allMotifs) { markerId, motifs ->
         markerId?.let { id -> motifs.firstOrNull { it.markerId == id } }

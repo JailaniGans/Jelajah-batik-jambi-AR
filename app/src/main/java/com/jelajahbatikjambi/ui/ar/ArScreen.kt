@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -116,6 +117,7 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
     // confirmed this session, the status pill and scan hint stop telling the
     // user to keep looking (see ArStatusIndicator/ScanHint).
     val hasDiscovered by arViewModel.hasDiscovered.collectAsStateWithLifecycle()
+    val hasRegisteredMotifs by arViewModel.hasRegisteredMotifs.collectAsStateWithLifecycle()
 
     // Resets automatically whenever the confirmed motif changes (or clears),
     // so dismissing the panel for one motif doesn't suppress it for the next.
@@ -202,13 +204,21 @@ fun ArScreen(onBack: () -> Unit, onViewDetail: (Int) -> Unit, onStartQuiz: (Int)
                 ScanScrims(modifier = Modifier.fillMaxSize())
 
                 MarkerReticle(state = arState, region = detectedRegion, modifier = Modifier.fillMaxSize())
-                ScanHint(
-                    state = arState,
-                    hasDiscovered = hasDiscovered,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(top = Dimensions.spacingXxl + 140.dp)
-                )
+                if (hasRegisteredMotifs) {
+                    ScanHint(
+                        state = arState,
+                        hasDiscovered = hasDiscovered,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(top = Dimensions.spacingXxl + 140.dp)
+                    )
+                } else {
+                    NoMotifRegisteredNotice(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(top = Dimensions.spacingXxl + 140.dp)
+                    )
+                }
                 ArStatusIndicator(
                     state = arState,
                     hasDiscovered = hasDiscovered,
@@ -324,6 +334,27 @@ private fun ScanScrims(modifier: Modifier = Modifier) {
                 )
         )
     }
+}
+
+/**
+ * First-run AR: until the user registers at least one motif (Koleksi → +),
+ * the detector has no reference photos, so scanning genuinely cannot find
+ * anything. Say so plainly instead of the "keep looking" [ScanHint].
+ */
+@Composable
+private fun NoMotifRegisteredNotice(modifier: Modifier = Modifier) {
+    Text(
+        text = "Belum ada motif terdaftar. Tambahkan motif dari Koleksi (tombol +) — foto motifnya nanti bisa langsung dipindai di sini.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = Color.White,
+        textAlign = TextAlign.Center,
+        modifier = modifier
+            .background(
+                color = Color.Black.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(Dimensions.cornerRadiusSmall)
+            )
+            .padding(horizontal = Dimensions.spacingMd, vertical = Dimensions.spacingSm)
+    )
 }
 
 /**
