@@ -211,12 +211,23 @@ object TexturedCubeGlbGenerator {
         }
     }
 
-    private fun encodeTexture(source: Bitmap): ByteArray {
+    /**
+     * Center-crops [source] to the largest square that fits and scales it to
+     * [size]x[size]. This is the exact mapping the cube UVs expect (the whole
+     * [0..1] texture spans a square, i.e. the middle square of the source
+     * photo), so any runtime texture uploaded for a custom cube must be
+     * produced by this same function to line up with the geometry.
+     */
+    fun squareCenterCrop(source: Bitmap, size: Int): Bitmap {
         val side = minOf(source.width, source.height)
         val x = (source.width - side) / 2
         val y = (source.height - side) / 2
         val cropped = Bitmap.createBitmap(source, x, y, side, side)
-        val resized = Bitmap.createScaledBitmap(cropped, TEXTURE_SIZE, TEXTURE_SIZE, true)
+        return Bitmap.createScaledBitmap(cropped, size, size, true)
+    }
+
+    private fun encodeTexture(source: Bitmap): ByteArray {
+        val resized = squareCenterCrop(source, TEXTURE_SIZE)
         val stream = ByteArrayOutputStream()
         resized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, stream)
         return stream.toByteArray()

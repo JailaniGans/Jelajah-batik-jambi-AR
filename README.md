@@ -713,19 +713,20 @@ Pengguna memilih foto melalui **Koleksi lalu Tambah Motif**. Alurnya:
 1. Foto dipilih lewat `ActivityResultContracts.GetContent`, lalu **rotasi EXIF diterapkan** (`decodePickedImage`) — foto tersimpan dalam orientasi yang sama seperti dilihat kamera di dunia nyata.
 2. Saat **Simpan Motif** ditekan, form diganti panel proses; tiap langkah di bawah ditampilkan satu per satu (`SaveStage`).
 3. Foto disalin ke `filesDir/custom_images/<uuid>.jpg` dengan JPEG quality 90.
-4. `TexturedCubeGlbGenerator` membuat model kubus 5 cm bertekstur secara on-device, berupa glTF 2.0/GLB valid dengan 6 sisi, tekstur 512 px yang di-center-crop, JPEG quality 85, material `metallic 0.0` dan `roughness 0.8`, serta sampler clamp dengan filtering linear satu tingkat (tanpa mipmap — mencegah kubus hitam di beberapa perangkat, sebab sampler mipmapped pada jalur tekstur embedded gltfio bisa me-render hitam); keluarannya ditulis ke `filesDir/custom_models/<uuid>.glb`.
+4. `TexturedCubeGlbGenerator` membuat model kubus 5 cm bertekstur secara on-device, berupa glTF 2.0/GLB valid dengan 6 sisi, tekstur 512 px yang di-center-crop, JPEG quality 85, material `metallic 0.0` dan `roughness 0.8`, serta sampler clamp dengan filtering linear satu tingkat; keluarannya ditulis ke `filesDir/custom_models/<uuid>.glb`. (Saat dimuat di AR, tekstur diikat runtime dari foto sumber — lihat [Perbaikan kubus hitam](#perbaikan-kubus-hitam-ikatan-tekstur-runtime-definitif) — sehingga rendering tidak bergantung decode gambar embedded.)
 5. Baris `CustomMotifEntity` ditambahkan ke Room.
 6. Foto didaftarkan sebagai target deteksi AR **saat itu juga** (`MotifRepository.registerDetectorTarget`) — ORB dihitung sekali, dan referensi **di-downscale ke maks. 1600 px/sisi** agar sejalan dengan skala frame kamera.
 7. Bila bagian soal tercentang, soal kuis ditautkan ke `batikId` = combined id motif.
 
 Motif bawaan dan motif custom tidak akan pernah bentrok. Repository custom memakai offset ID `CUSTOM_ID_OFFSET = 1000` untuk kedua field, yaitu `id` maupun `markerId`.
 
-### Perbaikan otomatis kubus hitam (migrasi GLB legacy)
+### Perbaikan kubus hitam: ikatan tekstur runtime (definitif)
 
-GLB custom yang dibuat oleh generator generasi pertama memakai `minFilter 9987` (mipmapped). Pada jalur tekstur embedded gltfio, sampler yang meminta mipmap tetapi tidak mendapatkannya di-render sebagai **kubus hitam polos** di sebagian perangkat — terbukti di perangkat (A/B: GLB yang sama langsung menampilkan motif begitu `minFilter` di-flatten ke satu tingkat, 9729). Perbaikan dua lapis:
+GLB custom yang dibuat on-device ternyata **strukturnya sah** (sampler satu tingkat, tekstur JPEG valid dan berwarna) — namun pada sebagian perangkat jalur **decode gambar embedded gltfio** (stb_image) gagal menghasilkan tekstur yang terpakai, sehingga kubus di-render **hitam polos** meski geometri/materi di dalam GLB identik dengan yang tampil benar (terbukti on-device: dua GLB berstruktur identik, satu tampil, satu hitam; tekstur embedded keduanya berwarna normal). Perbaikan berlapis:
 
-1. **Generator kini menulis sampler satu tingkat** (`minFilter 9729`, tanpa mipmap) — motif baru selalu bertekstur.
-2. **Migrasi sekali-per-upgrade** (`JelajahBatikJambiApp` → `MotifRepository.repairLegacyCustomGlbs()`): pada peluncuran pertama setelah update, setiap GLB custom yang masih membawa sampler mipmapped (dideteksi lewat `render/GlbSampler.kt`, murni dan diuji di JVM) di-generate ulang dari foto sumber di `custom_images/` dengan generator yang sudah diperbaiki, lalu ditimpa secara atomik. Jadi aplikasi yang sudah terpasang "menyembuhkan diri" tanpa perlu meng-upload ulang motif atau operasi manual; berkas yang sudah benar (9728/9729) tidak disentuh.
+1. **Ikatan tekstur runtime** (`ModelLoader` → `bindSourceTexture`): saat GLB custom dimuat, foto sumber di `custom_images/<uuid>.jpg` di-decode, di-center-crop kotak 512 px (persis mapping UV kubus), di-upload sebagai tekstur GPU RGBA8, lalu **diikat langsung ke material** (`baseColorMap` + `baseColorIndex`, parameter ubershader gltfio yang diverifikasi di binary versi terpasang). Rendering tidak lagi bergantung decode embedded sama sekali — menentukan untuk motif baru **dan** GLB lama yang sudah tersimpan (tanpa perlu regenerate).
+2. **Generator menulis sampler satu tingkat** (`minFilter 9729`, tanpa mipmap) — laik untuk alat/browser GLB apa pun.
+3. **Migrasi sekali-per-upgrade** (`JelajahBatikJambiApp` → `MotifRepository.repairLegacyCustomGlbs()`): pada peluncuran pertama setelah update, GLB custom yang masih membawa sampler mipmapped (dideteksi `render/GlbSampler.kt`, murni, diuji di JVM) di-generate ulang dari foto sumber dengan generator yang sudah diperbaiki, ditimpa secara atomik; berkas yang sudah benar (9728/9729) tidak disentuh.
 
 ### Mengedit motif dari aplikasi
 

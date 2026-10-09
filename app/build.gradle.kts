@@ -14,7 +14,7 @@ android {
         applicationId = "com.jelajahbatikjambi"
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
+        versionCode = 10
         versionName = "1.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
