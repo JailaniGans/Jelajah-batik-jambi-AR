@@ -1,6 +1,7 @@
 package com.jelajahbatikjambi.ar
 
 import android.content.res.AssetManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import org.opencv.android.Utils
 import org.opencv.core.Core
@@ -14,6 +15,7 @@ import org.opencv.features.DescriptorMatcher
 import org.opencv.features.ORB
 import org.opencv.geometry.Geometry
 import org.opencv.imgproc.Imgproc
+import kotlin.math.roundToInt
 
 /**
  * Recognizes a real Batik Jambi motif photo/cloth directly via feature
@@ -133,8 +135,33 @@ class ImageTargetDetector(
         } else {
             assetManager.open(ref.path).use { BitmapFactory.decodeStream(it) }
         }
+
+        // User uploads are often far larger than the camera frame (a 4000px
+        // phone photo vs. a ~1080p frame), and ORB is scale-sensitive — a 4x
+        // scale gap between reference and frame leaves few surviving
+        // ratio-test matches, which reads as "the motif is never detected".
+        // Matching on a downscaled copy keeps reference and frame near the
+        // same scale (and registers faster). Aspect ratio is preserved, so
+        // the physical meters derived below stay identical.
+        val longSideOriginal = maxOf(bitmap.width, bitmap.height)
+        val downscale = if (longSideOriginal > MAX_REFERENCE_SIDE_PX) {
+            MAX_REFERENCE_SIDE_PX.toFloat() / longSideOriginal
+        } else {
+            1f
+        }
+        val matchBitmap = if (downscale < 1f) {
+            Bitmap.createScaledBitmap(
+                bitmap,
+                (bitmap.width * downscale).roundToInt(),
+                (bitmap.height * downscale).roundToInt(),
+                true
+            )
+        } else {
+            bitmap
+        }
+
         val rgba = Mat()
-        Utils.bitmapToMat(bitmap, rgba)
+        Utils.bitmapToMat(matchBitmap, rgba)
         val gray = Mat()
         Imgproc.cvtColor(rgba, gray, Imgproc.COLOR_RGBA2GRAY)
         rgba.release()
@@ -156,6 +183,11 @@ class ImageTargetDetector(
             descriptors = descriptors
         )
         gray.release()
+        // The original decode is left to OpenCV/GC; only the scaled copy is
+        // ours to recycle.
+        if (matchBitmap !== bitmap) {
+            matchBitmap.recycle()
+        }
         return target
     }
 
@@ -239,5 +271,8 @@ class ImageTargetDetector(
     companion object {
         /** Assumed real-world length of a reference image's longer side, in meters (~a folded cloth/print). */
         const val ASSUMED_LONG_SIDE_METERS = 0.20
+
+        /** Reference photos are downscaled to at most this many pixels per side before ORB (see [loadTarget]). */
+        const val MAX_REFERENCE_SIDE_PX = 1600
     }
 }

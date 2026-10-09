@@ -23,6 +23,7 @@ import com.jelajahbatikjambi.ui.quiz.CreateQuizScreen
 import com.jelajahbatikjambi.ui.quiz.QuizScreen
 import com.jelajahbatikjambi.ui.editquizquestion.EditQuizQuestionScreen
 import com.jelajahbatikjambi.ui.managecustomquiz.ManageCustomQuizScreen
+import com.jelajahbatikjambi.ui.managemotifs.ManageMotifsScreen
 
 private const val TRANSITION_DURATION_MS = 200
 
@@ -65,7 +66,9 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 onViewDetail = { batikId -> navController.navigate(AppRoutes.detail(batikId)) },
                 onStartQuiz = { navController.navigate(AppRoutes.quiz()) },
-                onAddMotif = { navController.navigate(AppRoutes.ADD_MOTIF) }
+                onAddMotif = { navController.navigate(AppRoutes.ADD_MOTIF) },
+                onManageMotifs = { navController.navigate(AppRoutes.MANAGE_MOTIFS) },
+                onManageQuiz = { navController.navigate(AppRoutes.MANAGE_CUSTOM_QUIZ) }
             )
         }
         composable(AppRoutes.ADD_MOTIF) {
@@ -84,9 +87,7 @@ fun AppNavHost(
             val batikId = backStackEntry.arguments?.getInt(AppRoutes.QUIZ_BATIK_ID_ARG) ?: -1
             QuizScreen(
                 batikId = batikId.takeIf { it >= 0 },
-                onBack = { navController.popBackStack() },
-                onCreateQuiz = { navController.navigate(AppRoutes.createQuiz(batikId)) },
-                onManageCustomQuiz = { navController.navigate(AppRoutes.MANAGE_CUSTOM_QUIZ) }
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
@@ -108,6 +109,13 @@ fun AppNavHost(
                 onBack = { navController.popBackStack() },
                 onAddQuestion = { navController.navigate(AppRoutes.createQuiz()) },
                 onEditQuestion = { questionId -> navController.navigate(AppRoutes.editQuizQuestion(questionId)) }
+            )
+        }
+        composable(AppRoutes.MANAGE_MOTIFS) {
+            ManageMotifsScreen(
+                onBack = { navController.popBackStack() },
+                onEdit = { batikId -> navController.navigate(AppRoutes.editMotif(batikId)) },
+                onAddMotif = { navController.navigate(AppRoutes.ADD_MOTIF) }
             )
         }
         composable(
@@ -134,7 +142,6 @@ fun AppNavHost(
             DetailScreen(
                 batikId = batikId,
                 onBack = { navController.popBackStack() },
-                onEdit = { navController.navigate(AppRoutes.editMotif(it)) },
                 onJelajahiDenganAr = { navController.popBackStack() }
             )
         }

@@ -7,6 +7,7 @@ object AppRoutes {
     const val ABOUT = "about"
     const val ADD_MOTIF = "add_motif"
     const val MANAGE_CUSTOM_QUIZ = "manage_custom_quiz"
+    const val MANAGE_MOTIFS = "manage_motifs"
 
     // Same absent-vs-present convention as QUIZ below: no {batikId}
     // placeholder in the base route, an absent arg (Collection's manage

@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,18 +47,24 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
  * set — started right after scanning that motif in AR (§ user request:
  * "ketika klik mulai kuis pertanyaan sesuai dengan motif apa yang saya
  * scan") — it holds only the questions keyed to that motif.
+ *
+ * Play-only screen: authoring questions (create/edit) lives exclusively
+ * behind Kelola Koleksi → Kelola Soal Kuis (§ user request — "edit motif
+ * dan soal hanya bisa di akses lewat kelola koleksi"), so the top bar has
+ * no add/manage actions and the empty state just points there.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onManageCustomQuiz: () -> Unit) {
+fun QuizScreen(batikId: Int?, onBack: () -> Unit) {
     val application = LocalContext.current.applicationContext as android.app.Application
     val viewModel: QuizViewModel = viewModel(factory = QuizViewModel.factory(application, batikId))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // Coming back from the "+" create-question form or the manage screen: a
-    // stored question set that changed while away rebuilds the session, so a
-    // newly added question is really in the quiz; an untouched session keeps
-    // its snapshot (shuffle, score, progress).
+    // A question set edited in the background (e.g. via Kelola Soal Kuis
+    // while this screen was in the back stack behind another destination)
+    // rebuilds the session on resume, so a newly added question is really in
+    // the quiz; an untouched session keeps its snapshot (shuffle, score,
+    // progress).
     LifecycleResumeEffect(Unit) {
         viewModel.reloadIfChanged()
         onPauseOrDispose { }
@@ -73,14 +77,6 @@ fun QuizScreen(batikId: Int?, onBack: () -> Unit, onCreateQuiz: () -> Unit, onMa
                 navigationIcon = {
                     IconButton(onClick = onBack.withClickSound()) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onManageCustomQuiz.withClickSound()) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Kelola Soal Kuis")
-                    }
-                    IconButton(onClick = onCreateQuiz.withClickSound()) {
-                        Icon(Icons.Filled.Add, contentDescription = "Buat Soal Kuis")
                     }
                 }
             )
@@ -141,9 +137,9 @@ internal fun EmptyState(batikId: Int? = null, modifier: Modifier = Modifier) {
         )
         Text(
             text = if (batikId != null) {
-                "Tekan tombol + di atas untuk membuat soal untuk motif ini — pilihannya sudah terisi otomatis."
+                "Tambahkan soal untuk motif ini lewat Koleksi → Kelola Soal Kuis."
             } else {
-                "Tekan tombol + di atas untuk membuat soal kuis pertama Anda, lalu pilih motif yang ingin diujikan."
+                "Buat soal kuis pertamamu lewat Koleksi → Kelola Soal Kuis, lalu pilih motif yang ingin diujikan."
             },
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center

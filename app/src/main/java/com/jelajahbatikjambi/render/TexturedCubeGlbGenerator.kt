@@ -11,9 +11,11 @@ import java.nio.ByteOrder
  * Builds a textured cube GLB entirely on-device, for user-uploaded custom
  * motifs (§ user request — "tambahkan motif dengan upload .jpg") that have
  * no bundled asset to fall back on. Mirrors the offline Python generator used
- * to pre-bake the 4 built-in motif cubes (identical cube geometry, UVs, and
- * material setup) so a custom motif's 3D object looks and behaves exactly
- * like a built-in one.
+ * to pre-bake the 4 built-in motif cubes (identical cube geometry and UVs,
+ * and the same material) so a custom motif's 3D object looks and behaves
+ * exactly like a built-in one — with one deliberate fix: the texture
+ * sampler uses a single level (no mipmaps), since a mipmapped sampler on
+ * gltfio's embedded-texture path rendered the cube black on-device.
  */
 object TexturedCubeGlbGenerator {
 
@@ -170,7 +172,16 @@ object TexturedCubeGlbGenerator {
             put(
                 "samplers",
                 JSONArray().put(
-                    JSONObject().put("magFilter", 9729).put("minFilter", 9987).put("wrapS", 10497).put("wrapT", 10497)
+                    // minFilter 9729 (LINEAR) — deliberately NOT a mipmapped
+                    // filter (9987 LINEAR_MIPMAP_LINEAR): gltfio's embedded-
+                    // texture path does not always generate mipmaps, and a
+                    // mip-requiring sampler then samples a missing level,
+                    // which renders as a *black* cube on some devices (seen
+                    // on-device: 5cm cube with correct JPEG texture inside
+                    // the GLB, but rendered fully black until minFilter was
+                    // flattened to a single level). A 512px texture on a 5cm
+                    // cube loses nothing without mipmaps.
+                    JSONObject().put("magFilter", 9729).put("minFilter", 9729).put("wrapS", 10497).put("wrapT", 10497)
                 )
             )
             put("images", JSONArray().put(JSONObject().put("bufferView", 4).put("mimeType", "image/jpeg")))

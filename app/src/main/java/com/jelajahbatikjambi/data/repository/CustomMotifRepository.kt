@@ -37,6 +37,10 @@ class CustomMotifRepository(private val dao: CustomMotifDao) {
     suspend fun getAllOnceAsBatikData(): List<BatikData> =
         dao.getAllOnce().map { it.toBatikData() }
 
+    /** Raw stored paths (photo/GLB) for every custom motif — used by the one-time GLB repair. */
+    suspend fun getAllEntitiesOnce(): List<CustomMotifEntity> =
+        dao.getAllOnce()
+
     suspend fun addMotif(
         name: String,
         category: String,

@@ -1,16 +1,24 @@
 package com.jelajahbatikjambi.data.repository
 
 import android.app.Application
+import android.graphics.BitmapFactory
+import android.util.Log
+import com.jelajahbatikjambi.ar.ImageTargetDetector
+import com.jelajahbatikjambi.ar.MotifDetector
 import com.jelajahbatikjambi.data.model.BatikData
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.database.BatikOverrideDao
 import com.jelajahbatikjambi.database.BatikOverrideEntity
 import com.jelajahbatikjambi.database.CustomMotifEntity
+import com.jelajahbatikjambi.render.GlbSampler
+import com.jelajahbatikjambi.render.TexturedCubeGlbGenerator
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 /** Sub-directory of `filesDir` holding replacement photos for edited built-in motifs. */
 private const val EDITED_IMAGE_DIR = "edited_images"
@@ -18,6 +26,8 @@ private const val EDITED_IMAGE_DIR = "edited_images"
 /** Sub-directories of `filesDir` the Add Motif flow writes a custom motif's photo/GLB into. */
 private const val CUSTOM_IMAGE_DIR = "custom_images"
 private const val CUSTOM_MODEL_DIR = "custom_models"
+
+private const val TAG = "MotifRepo"
 
 /**
  * The single source of truth for "what motifs exist and what do they say":
@@ -53,6 +63,51 @@ class MotifRepository private constructor(private val application: Application) 
     /** Live view of one motif by id — emits again whenever it is edited. */
     fun motifById(batikId: Int): Flow<BatikData?> =
         allMotifs.map { motifs -> motifs.firstOrNull { it.id == batikId } }
+
+    /**
+     * The app's single [ImageTargetDetector], shared by the Add Motif flow and
+     * the AR screen — nothing may be registered into a detector the AR screen
+     * never sees. Lazily built because a fresh install has no bundled motifs:
+     * the ORB setup waits until something actually needs scanning.
+     */
+    private val detector: ImageTargetDetector by lazy {
+        ImageTargetDetector(
+            assetManager = application.assets,
+            referenceImages = builtInMotifs.mapNotNull { batik ->
+                batik.imagePath?.let { path ->
+                    ImageTargetDetector.ReferenceImage(id = batik.markerId, name = batik.name, path = path)
+                }
+            }
+        )
+    }
+
+    /** The shared detector as the engine interface the AR controller consumes. */
+    val motifDetector: MotifDetector get() = detector
+
+    /**
+     * Registers a freshly-saved custom motif's photo as an AR target right at
+     * save time: the ORB features are computed once, here, so by the time the
+     * user points the camera at the cloth the target is already loaded — and
+     * the add-motif screen can show "Mendaftarkan ke detektor AR" as a real
+     * step. Call off the main thread (the caller's IO coroutine).
+     */
+    suspend fun registerDetectorTarget(markerId: Int, name: String, imagePath: String) {
+        withContext(Dispatchers.Default) {
+            detector.updateReferenceImages(
+                listOf(ImageTargetDetector.ReferenceImage(id = markerId, name = name, path = imagePath))
+            )
+        }
+    }
+
+    /** Live-sync hook for ArViewModel: pushes new/changed photos into the shared detector. */
+    fun updateDetectorReferenceImages(images: List<ImageTargetDetector.ReferenceImage>) {
+        detector.updateReferenceImages(images)
+    }
+
+    /** Live-sync hook for ArViewModel: drops photos whose motifs were deleted. */
+    fun removeDetectorReferenceImages(ids: Set<Int>) {
+        detector.removeReferenceImages(ids)
+    }
 
     suspend fun getAllOnce(): List<BatikData> = allMotifs.first()
 
@@ -140,6 +195,10 @@ class MotifRepository private constructor(private val application: Application) 
         val entity = getCustomMotif(combinedId)
             ?: error("Motif custom tidak ditemukan")
         customMotifRepository.deleteMotif(entity)
+        // The shared detector must forget the deleted motif's photo too, or a
+        // later AR session (whose per-visit diff starts empty) would still
+        // match the removed photo against nothing.
+        detector.removeReferenceImages(setOf(combinedId))
         database.customQuizQuestionDao().deleteByBatikId(combinedId)
         database.discoveryDao().deleteByBatikId(combinedId)
         listOf(entity.imagePath, entity.modelPath).forEach { path ->
@@ -149,6 +208,70 @@ class MotifRepository private constructor(private val application: Application) 
             if (file.parentFile?.name == CUSTOM_IMAGE_DIR || file.parentFile?.name == CUSTOM_MODEL_DIR) {
                 runCatching { file.delete() }
             }
+        }
+    }
+
+    /**
+     * One-time post-update repair for the black-cube bug (§ user request —
+     * "objek 3d nya berwarna hitam setelah saya tambahkan motif"). Custom GLBs
+     * written by the first on-device generator asked for mipmapped sampling
+     * (`minFilter 9987`), which gltfio's embedded-texture path renders as a
+     * fully black cube on some devices. Each affected stored GLB is
+     * regenerated from the motif's original source photo with the current
+     * generator (single-level linear sampler) and overwritten in place, so
+     * already-installed apps heal themselves on the first launch after the
+     * update — no re-upload or adb surgery needed. Files that already carry
+     * the fixed sampler are left untouched ([com.jelajahbatikjambi.render.GlbSampler]).
+     *
+     * Returns the number of GLBs regenerated. Skips a motif whose photo file
+     * is missing (nothing to re-render from) and never lets one failure abort
+     * the rest.
+     */
+    suspend fun repairLegacyCustomGlbs(): Int {
+        val entities = customMotifRepository.getAllEntitiesOnce()
+        var repaired = 0
+        for (entity in entities) {
+            val glbFile = File(entity.modelPath)
+            val needsRegeneration =
+                !glbFile.exists() || GlbSampler.requiresRegeneration(readBytesOrNull(glbFile))
+            if (!needsRegeneration) continue
+
+            val photo = File(entity.imagePath)
+            if (!photo.exists()) {
+                Log.w(TAG, "GLB repair: foto hilang untuk ${entity.name}, dilewati")
+                continue
+            }
+            val bitmap = runCatching { BitmapFactory.decodeFile(photo.absolutePath) }.getOrNull()
+            if (bitmap == null) {
+                Log.w(TAG, "GLB repair: foto tak terbaca untuk ${entity.name}, dilewati")
+                continue
+            }
+            try {
+                val bytes = TexturedCubeGlbGenerator.generate(bitmap)
+                writeAtomically(glbFile, bytes)
+                repaired++
+                Log.i(TAG, "GLB repair: regen '${entity.name}' -> ${glbFile.name}")
+            } catch (t: Throwable) {
+                Log.w(TAG, "GLB repair: gagal regen untuk '${entity.name}'", t)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        return repaired
+    }
+
+    private fun readBytesOrNull(file: File): ByteArray? =
+        if (file.exists()) runCatching { file.readBytes() }.getOrNull() else null
+
+    /** Writes to a temp file then renames, so a reader never sees a half-written GLB. */
+    private fun writeAtomically(file: File, bytes: ByteArray) {
+        val tmp = File(file.parentFile, "${file.name}.tmp")
+        tmp.writeBytes(bytes)
+        if (!tmp.renameTo(file)) {
+            // Same directory rename is atomic on Linux; if it ever fails, fall
+            // back to a direct overwrite rather than leaving the tmp behind.
+            file.writeBytes(bytes)
+            runCatching { tmp.delete() }
         }
     }
 

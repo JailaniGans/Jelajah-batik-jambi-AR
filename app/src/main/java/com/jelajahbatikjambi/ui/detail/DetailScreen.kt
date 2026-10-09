@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,17 +45,19 @@ import com.jelajahbatikjambi.ui.theme.Dimensions
  * unambiguous.
  *
  * Reads the repository's *Flow* rather than a one-shot lookup: coming back
- * from the edit screen (or from anywhere else, e.g. an edit made while this
- * screen sits in the back stack) re-emits with the fresh values, so the
- * detail shown always matches what's stored. The pencil icon hands the
- * current motif to the edit screen.
+ * from anywhere (e.g. an edit made while this screen sits in the back
+ * stack) re-emits with the fresh values, so the detail shown always matches
+ * what's stored.
+ *
+ * View-only: editing a motif happens exclusively behind Koleksi → Kelola
+ * Motif (§ user request — "edit motif dan soal hanya bisa di akses lewat
+ * kelola koleksi"), so there is no pencil in the top bar here.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     batikId: Int,
     onBack: () -> Unit,
-    onEdit: (Int) -> Unit,
     onJelajahiDenganAr: () -> Unit
 ) {
     val context = LocalContext.current
@@ -86,13 +87,6 @@ fun DetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack.withClickSound()) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
-                    }
-                },
-                actions = {
-                    if (currentBatik != null) {
-                        IconButton(onClick = { onEdit(batikId) }.withClickSound()) {
-                            Icon(Icons.Filled.Edit, contentDescription = "Edit Motif")
-                        }
                     }
                 }
             )

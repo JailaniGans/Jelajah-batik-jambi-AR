@@ -12,6 +12,7 @@ import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.database.CustomQuizQuestionEntity
 import com.jelajahbatikjambi.render.TexturedCubeGlbGenerator
+import com.jelajahbatikjambi.ui.common.decodePickedImage
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -128,12 +129,10 @@ class EditMotifViewModel(application: Application, private val batikId: Int) : A
 
     fun onImagePicked(uri: android.net.Uri) {
         viewModelScope.launch {
+            // EXIF rotation applied here too — the replacement photo must
+            // match what the AR camera sees, same as Add Motif.
             val bitmap = withContext(Dispatchers.IO) {
-                runCatching {
-                    getApplication<Application>().contentResolver.openInputStream(uri)?.use {
-                        BitmapFactory.decodeStream(it)
-                    }
-                }.getOrNull()
+                decodePickedImage(getApplication<Application>().contentResolver, uri)
             }
             _uiState.value = if (bitmap != null) {
                 _uiState.value.copy(pickedBitmap = bitmap, previewBitmap = bitmap, error = null)

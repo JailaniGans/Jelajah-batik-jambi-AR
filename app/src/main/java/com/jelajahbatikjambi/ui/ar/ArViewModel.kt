@@ -71,15 +71,11 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
     private val discoveryRepository = DiscoveryRepository(database.discoveryDao())
     private val motifRepository = MotifRepository.getInstance(application)
 
-    private val imageTargetDetector = ImageTargetDetector(
-        assetManager = application.assets,
-        referenceImages = motifRepository.builtInMotifs.mapNotNull { batik ->
-            batik.imagePath?.let { path ->
-                ImageTargetDetector.ReferenceImage(id = batik.markerId, name = batik.name, path = path)
-            }
-        }
-    )
-    private val motifDetector: MotifDetector = imageTargetDetector
+    // The single app-wide detector owned by MotifRepository: built-ins (none
+    // since the bundle was emptied) load at construction, and new custom
+    // motifs are pre-registered at save time by the Add Motif flow. This
+    // screen only pushes live changes into that same instance.
+    private val motifDetector: MotifDetector = motifRepository.motifDetector
 
     private val controller = ArController(motifDetector = motifDetector, targetFps = IMAGE_TARGET_FPS)
 
@@ -183,7 +179,7 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
         val currentIds = motifs.mapTo(mutableSetOf()) { it.markerId }
         val removedIds = registeredReferences.keys.filter { it !in currentIds }
         if (removedIds.isNotEmpty()) {
-            imageTargetDetector.removeReferenceImages(removedIds.toSet())
+            motifRepository.removeDetectorReferenceImages(removedIds.toSet())
             removedIds.forEach { registeredReferences.remove(it) }
         }
 
@@ -197,7 +193,7 @@ class ArViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (changed.isEmpty()) return
 
-        imageTargetDetector.updateReferenceImages(changed.map { it.first })
+        motifRepository.updateDetectorReferenceImages(changed.map { it.first })
         changed.forEach { (reference, path) -> registeredReferences[reference.id] = path }
     }
 

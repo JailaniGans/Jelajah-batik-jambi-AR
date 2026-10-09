@@ -2,22 +2,27 @@ package com.jelajahbatikjambi.ui.addmotif
 
 import android.app.Application
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jelajahbatikjambi.data.repository.CustomMotifRepository
 import com.jelajahbatikjambi.data.repository.CustomQuizRepository
+import com.jelajahbatikjambi.data.repository.MotifRepository
 import com.jelajahbatikjambi.database.AppDatabase
 import com.jelajahbatikjambi.render.TexturedCubeGlbGenerator
+import com.jelajahbatikjambi.ui.common.decodePickedImage
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.util.UUID
+
+/** The phases of [AddMotifViewModel.save], surfaced one at a time so the user
+ *  sees the upload being processed instead of a bare spinner. */
+enum class SaveStage { PREPARING_IMAGE, BUILDING_3D, SAVING_MOTIF, REGISTERING_DETECTOR, SAVING_QUESTION }
 
 data class AddMotifUiState(
     val previewBitmap: Bitmap? = null,
@@ -31,6 +36,8 @@ data class AddMotifUiState(
     val questionOptions: List<String> = listOf("", "", "", ""),
     val questionCorrectOptionIndex: Int = 0,
     val isSaving: Boolean = false,
+    /** Non-null while [AddMotifViewModel.save] is running — drives the progress panel. */
+    val saveStage: SaveStage? = null,
     val error: String? = null,
     val savedSuccessfully: Boolean = false
 ) {
@@ -44,11 +51,19 @@ data class AddMotifUiState(
 /**
  * Lets the user register a new scannable motif from their own photo
  * (§ user request: "tambahkan opsi untuk tambahkan motif yang bisa di scan
- * dengan upload .jpg"): copies the picked image into app-private storage,
- * builds a textured cube GLB from it on-device via
+ * dengan upload .jpg"): copies the picked image into app-private storage
+ * (with its EXIF rotation applied, so the stored reference matches what the
+ * camera sees), builds a textured cube GLB from it on-device via
  * [TexturedCubeGlbGenerator], and saves a [com.jelajahbatikjambi.database.CustomMotifEntity]
- * pointing at both files. [com.jelajahbatikjambi.ui.ar.ArViewModel] then picks
- * up the new motif automatically through its live Room Flow.
+ * pointing at both files.
+ *
+ * The photo is also **pre-registered into the shared AR detector** at save
+ * time ([MotifRepository.registerDetectorTarget]) — computing its ORB
+ * features right here instead of whenever the AR screen happens to open, and
+ * letting the save screen show the process step by step ([SaveStage]). The
+ * live Room Flow then keeps [com.jelajahbatikjambi.ui.ar.ArViewModel] in
+ * sync with the same shared detector, so a freshly added motif is scannable
+ * immediately.
  *
  * The "buat soal kuis" section is ticked by default (the app has no bundled
  * questions — the user writes them, naturally when registering a new motif);
@@ -62,6 +77,7 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
 
     private val customMotifRepository = CustomMotifRepository(AppDatabase.getInstance(application).customMotifDao())
     private val customQuizRepository = CustomQuizRepository(AppDatabase.getInstance(application).customQuizQuestionDao())
+    private val motifRepository = MotifRepository.getInstance(application)
 
     private val _uiState = MutableStateFlow(AddMotifUiState())
     val uiState: StateFlow<AddMotifUiState> = _uiState.asStateFlow()
@@ -70,11 +86,7 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(error = null)
             val bitmap = withContext(Dispatchers.IO) {
-                runCatching {
-                    getApplication<android.app.Application>().contentResolver.openInputStream(uri)?.use {
-                        BitmapFactory.decodeStream(it)
-                    }
-                }.getOrNull()
+                decodePickedImage(getApplication<Application>().contentResolver, uri)
             }
             _uiState.value = if (bitmap != null) {
                 _uiState.value.copy(previewBitmap = bitmap)
@@ -118,23 +130,26 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
         val bitmap = state.previewBitmap ?: return
         if (!state.canSave || state.isSaving) return
 
-        _uiState.value = state.copy(isSaving = true, error = null)
+        _uiState.value = state.copy(isSaving = true, saveStage = SaveStage.PREPARING_IMAGE, error = null)
         viewModelScope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val context = getApplication<android.app.Application>()
+                    val context = getApplication<Application>()
                     val uuid = UUID.randomUUID().toString()
 
+                    _uiState.value = _uiState.value.copy(saveStage = SaveStage.PREPARING_IMAGE)
                     val imagesDir = File(context.filesDir, "custom_images").apply { mkdirs() }
                     val imageFile = File(imagesDir, "$uuid.jpg")
                     imageFile.outputStream().use { out ->
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
                     }
 
+                    _uiState.value = _uiState.value.copy(saveStage = SaveStage.BUILDING_3D)
                     val modelsDir = File(context.filesDir, "custom_models").apply { mkdirs() }
                     val modelFile = File(modelsDir, "$uuid.glb")
                     modelFile.writeBytes(TexturedCubeGlbGenerator.generate(bitmap))
 
+                    _uiState.value = _uiState.value.copy(saveStage = SaveStage.SAVING_MOTIF)
                     val rawId = customMotifRepository.addMotif(
                         name = state.name.trim(),
                         category = state.category.trim(),
@@ -143,10 +158,21 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
                         modelPath = modelFile.absolutePath
                     )
 
+                    // Registering the ORB target here (not when the AR screen
+                    // happens to open) makes a just-saved motif scannable
+                    // immediately — and is the visible "AR detection" step.
+                    _uiState.value = _uiState.value.copy(saveStage = SaveStage.REGISTERING_DETECTOR)
+                    motifRepository.registerDetectorTarget(
+                        markerId = customMotifRepository.combinedIdOf(rawId),
+                        name = state.name.trim(),
+                        imagePath = imageFile.absolutePath
+                    )
+
                     // The question is keyed to the motif's *combined* id (the
                     // one Detail/AR/quiz all use), which only exists once the
                     // row above has been inserted.
                     if (state.createQuizQuestion) {
+                        _uiState.value = _uiState.value.copy(saveStage = SaveStage.SAVING_QUESTION)
                         customQuizRepository.addQuestion(
                             prompt = state.questionPrompt.trim(),
                             options = state.questionOptions.map { it.trim() },
@@ -157,9 +183,9 @@ class AddMotifViewModel(application: Application) : AndroidViewModel(application
                 }
             }
             _uiState.value = if (result.isSuccess) {
-                _uiState.value.copy(isSaving = false, savedSuccessfully = true)
+                _uiState.value.copy(isSaving = false, saveStage = null, savedSuccessfully = true)
             } else {
-                _uiState.value.copy(isSaving = false, error = "Gagal menyimpan motif. Coba lagi.")
+                _uiState.value.copy(isSaving = false, saveStage = null, error = "Gagal menyimpan motif. Coba lagi.")
             }
         }
     }

@@ -68,10 +68,10 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 2. Buka aplikasi → **Mulai Jelajah** → berikan izin kamera.
 3. Arahkan ke salah satu foto motif di `batik_collections/` → pill berubah **Motif ditemukan**, model 3D muncul → demonstrasi gestur putar, geser, zoom.
 4. Dari panel informasi, buka **Lihat Detail** → tunjukkan deskripsi dan informasi motif.
-5. Tekan **ikon pensil** → edit deskripsi atau ganti foto → **Simpan** → kembali: detail, koleksi, dan deteksi AR langsung memakai data baru.
+5. Buka **Koleksi → Kelola Motif** → tekan **Edit** → ubah deskripsi atau ganti foto → **Simpan** → kembali: detail, koleksi, dan deteksi AR langsung memakai data baru.
 6. Kembali ke layar AR dan pindai motif yang sama dengan **foto yang baru diganti** → terdeteksi **tanpa restart aplikasi**.
 7. Tekan **Kembalikan ke asli** + konfirmasi → motif kembali ke data bawaan.
-8. Buka **Koleksi** → motif ditemukan terbuka, motif lain terkunci → **Mulai Kuis** → kerjakan, lalu tunjukkan pembuatan soal sendiri.
+8. Buka **Koleksi** → motif ditemukan terbuka, motif lain terkunci → **Mulai Kuis** → kerjakan → kembali, lalu buka **Kelola Soal Kuis** untuk menunjukkan pembuatan soal sendiri.
 
 ### Pertanyaan sidang yang lazim dan jawaban singkat
 
@@ -103,6 +103,8 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 | Fitur | Keterangan |
 |---|---|
 | Deteksi motif langsung | Mendeteksi **foto motif batik asli** melalui kamera (ORB + homography), bukan harus mencetak marker terpisah |
+| Ketahanan deteksi | Foto referensi dinormalisasi sebelum ORB: rotasi **EXIF diterapkan** saat foto dipilih dan referensi **di-downscale** (maks. 1600 px/sisi) agar sejalan dengan skala frame kamera — foto HP resolusi tinggi tetap bisa dicocokkan |
+| Pendaftaran saat simpan | Motif baru **didaftarkan ke detektor AR saat disimpan** (ORB dihitung sekali di `registerDetectorTarget`) — begitu selesai, motif langsung bisa dipindai tanpa menunggu layar AR memuat ulang |
 | Model 3D | Menampilkan model `.glb` bertekstur di atas motif, mengikuti gerakan dan sudut pandang pengguna |
 | Reticle pemindaian | Kotak siku yang "bernapas" saat mencari, lalu berubah menjadi kotak 4-sudut yang menempel pada motif terdeteksi |
 | Panel informasi | Bottom sheet berisi nama, kategori, dan deskripsi motif, plus tombol **Mulai Kuis** dan **Lihat Detail** |
@@ -116,27 +118,30 @@ Bagian ini merangkum aplikasi secara padat sebagai bahan pemaparan di hadapan do
 - Daftar motif **buatan pengguna** — aplikasi mulai tanpa motif bawaan (koleksi kosong, dipandu tombol **Tambahkan Motif Pertama**).
 - Motif yang sudah dipindai ditandai **ditemukan**; yang belum hanya muncul begitu berhasil dipindai.
 - Navigasi ke halaman detail, dan akses kuis umum — tombol **Mulai Kuis** selalu tersedia, tidak menunggu motif ditemukan.
+- Ikon kelola di bilah atas membuka **Kelola Motif**: daftar **semua** motif (termasuk yang belum ditemukan AR) dengan tombol **Edit** (membuka layar edit) dan **Hapus** (dialog konfirmasi, dengan aturan "motif terakhir tidak bisa dihapus").
+- Tombol **Kelola Soal Kuis** di bawah **Mulai Kuis** membuka layar kelola soal (tambah/edit/hapus). Bersama Kelola Motif, inilah **satu-satunya pintu masuk** untuk mengedit motif dan soal — layar Kuis dan Detail kini murni mode tampil (§ user request: "edit motif dan soal hanya bisa di akses lewat kelola koleksi").
 
 ### 🎓 Kuis
 
-- Seluruh soal **ditulis pengguna sendiri** — aplikasi tidak lagi membuat soal otomatis. Soal dibuat dari halaman Kuis (ikon **+**), dari layar Edit Motif, atau saat **Tambah Motif** (bagian soal tercentang otomatis, lihat di bawah).
+- Seluruh soal **ditulis pengguna sendiri** — aplikasi tidak lagi membuat soal otomatis. Soal dibuat dari **Koleksi → Kelola Soal Kuis** (tombol Tambah Soal), dari layar Edit Motif, atau saat **Tambah Motif** (bagian soal tercentang otomatis, lihat di bawah) — layar Kuis tidak lagi punya tombol buat/kelola soal.
 - **Mode motif** (dari AR): hanya soal yang terikat ke motif yang sedang dipindai.
 - **Mode umum** (dari Koleksi): semua soal buatan pengguna, di-*shuffle*. Tombol **Mulai Kuis** selalu tersedia, tidak menunggu motif ditemukan.
 - **Setiap soal wajib menentukan motif** lewat dropdown pilihan (bawaan + custom) saat dibuat maupun diedit; soal lama tanpa motif wajib memilih motif saat diedit berikutnya.
-- **Kelola soal**: daftar soal tampil di layar **Kelola Soal Kuis** (dari ikon kelola di bilah atas Kuis) dan di **Edit Motif** — lengkap dengan Edit, Hapus (dialog konfirmasi), dan Tambah Soal untuk motif tersebut. Di layar **Kelola Soal Kuis** juga ada tombol **Hapus Semua Soal** (dialog konfirmasi) untuk mengosongkan seluruh kuis sekaligus.
+- **Kelola soal**: daftar soal tampil di layar **Kelola Soal Kuis** (dari **Koleksi → Kelola Soal Kuis**) dan di **Edit Motif** — lengkap dengan Edit, Hapus (dialog konfirmasi), dan Tambah Soal untuk motif tersebut. Di layar **Kelola Soal Kuis** juga ada tombol **Hapus Semua Soal** (dialog konfirmasi) untuk mengosongkan seluruh kuis sekaligus.
 - Umpan balik benar/salah lewat **ikon + warna** (bukan warna saja), dilengkapi efek suara; layar hasil punya tombol **Main Lagi**.
 
 ### 🖼️ Tambah Motif
 
-- Pilih foto dari galeri (tanpa izin penyimpanan, memakai `ActivityResultContracts.GetContent`).
+- Pilih foto dari galeri (tanpa izin penyimpanan, memakai `ActivityResultContracts.GetContent`); **rotasi EXIF diterapkan** agar foto tersimpan sama seperti yang dilihat kamera di dunia nyata.
 - Isi nama, kategori, dan deskripsi singkat.
-- Aplikasi **membuat model 3D kubus bertekstur secara on-device** dari foto tersebut.
+- Saat disimpan, form diganti **panel proses langkah demi langkah**: *Memproses foto → Membuat model 3D (GLB) → Menyimpan motif → Mendaftarkan ke detektor AR → Menyimpan soal kuis* — bukan sekadar spinner.
+- Aplikasi **membuat model 3D kubus bertekstur secara on-device** dari foto tersebut, lalu **mendaftarkan foto ke detektor AR saat itu juga** (ORB dihitung, referensi di-downscale) — target siap dipindai begitu selesai.
 - Bagian **Buat soal kuis untuk motif ini** **tercentang otomatis** — setiap motif baru diiringi soal yang ditulis pengguna; lepas centang untuk melewatinya.
 - Motif baru langsung menjadi target yang dapat dipindai di AR **tanpa perlu restart**.
 
 ### ✏️ Edit Motif
 
-- Ikon **pensil** di layar Detail membuka form edit untuk **motif bawaan maupun motif buatan pengguna**.
+- Ikon **pensil** tidak lagi ada di layar Detail — form edit motif (bawaan maupun buatan pengguna) hanya dibuka lewat **Koleksi → Kelola Motif → Edit**.
 - Field yang bisa diedit: nama, kategori, deskripsi singkat, makna, sejarah, dan **foto motif**. Kolom yang dikosongkan dianggap "tidak diedit", sehingga nilai asli dipertahankan.
 - **Kelola soal motif ini**: layar edit menampilkan daftar soal kuis yang terikat ke motif tersebut (live dari Room) — tiap baris bisa **Edit** (membuka layar Edit Soal), **Hapus** (dialog konfirmasi), dan ada tombol **Tambah Soal** yang membuka Buat Soal dengan motif sudah terpilih.
 - **Hapus motif custom**: tombol merah **Hapus Motif** khusus motif buatan pengguna, hanya muncul bila jumlah motif lebih dari 1, dan berdialog konfirmasi. Penghapusan berantai: soal terikat, catatan penemuan, berkas foto/GLB, baris `custom_motifs`, sampai target deteksi AR ikut hilang.
@@ -190,15 +195,15 @@ flowchart TD
     COL -->|Lihat Detail| DET
     COL -->|Mulai Kuis| QUIZG["Quiz — mode umum"]
     COL -->|Tambah Motif| ADD["Add Motif Screen"]
+    COL -->|Kelola Motif| MG["Kelola Motif"]
+    COL -->|Kelola Soal Kuis| MQ["Kelola Soal Kuis"]
     COL -->|Kembali| HOME
 
     DET --> HOME
-    QUIZM -->|Buat soal| CQ["Create Quiz Screen"]
-    QUIZG -->|Buat soal| CQ
-    QUIZM -->|Kelola soal| MQ["Kelola Soal Kuis"]
-    MQ -->|Tambah soal| CQ
+    MQ -->|Tambah soal| CQ["Create Quiz Screen"]
     MQ -->|Edit soal| EQ["Edit Soal Kuis"]
-    CQ -->|Simpan| QUIZM
+    MG -->|Edit| RUTE["edit_motif/{batikId}"]
+    CQ -->|Simpan| MQ
     EQ -->|Simpan| MQ
     QUIZM --> AR
     QUIZG --> COL
@@ -251,7 +256,7 @@ flowchart TD
     QS --> SH["Shuffle"]
     QA --> SH
     SH --> EMPTY{"Masih ada soal?"}
-    EMPTY -->|Kosong| ES["Empty state — tombol + membuat soal, sesi ter-refresh saat kembali"]
+    EMPTY -->|Kosong| ES["Empty state — arahkan ke Koleksi → Kelola Soal Kuis"]
     EMPTY -->|Ada| ANS["Tampilkan soal — progres X dari Y"]
     ANS --> PICK["Pengguna memilih opsi"]
     PICK --> SUB["submitAnswer — bandingkan correctOptionIndex"]
@@ -260,11 +265,6 @@ flowchart TD
     MORE -->|Ya| ANS
     MORE -->|Tidak| RES["Result Screen — tampilkan skor akhir + Main Lagi"]
     RES -->|Main Lagi| SH
-    RES -->|Buat soal sendiri| CQ["CreateQuizScreen"]
-    CQ --> VAL{"Prompt, 4 opsi, dan motif terpilih?"}
-    VAL -->|Belum| CQ
-    VAL -->|Ya| SAVED["Simpan CustomQuizQuestionEntity ke Room — batikId wajib"]
-    SAVED --> BACK["popBackStack — LifecycleResumeEffect membandingkan soal tersimpan dengan snapshot; berbeda = sesi dibangun ulang"]
 ```
 
 ### 5. Alur Tambah Motif (Milik Pengguna)
@@ -272,15 +272,18 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["Koleksi — Tambah Motif"] --> B["Pilih foto — GetContent image tanpa izin penyimpanan"]
-    B --> PREV["Tampilkan preview bitmap"]
+    B --> PREV["Tampilkan preview bitmap — rotasi EXIF diterapkan"]
     PREV --> FORM["Isi nama, kategori, deskripsi singkat"]
     FORM --> CAN{"canSave — semua kolom terisi?"}
     CAN -->|Belum| FORM
-    CAN -->|Ya| IMG["Simpan JPEG ke filesDir/custom_images/uuid.jpg — quality 90"]
-    IMG --> GLB["TexturedCubeGlbGenerator.generate — kubus 5 cm, tekstur 512 px, JPEG quality 85"]
+    CAN -->|Ya| PANEL["Panel proses tampil — tiap langkah diperlihatkan"]
+    PANEL --> IMG["Memproses foto — JPEG ke filesDir/custom_images/uuid.jpg — quality 90"]
+    IMG --> GLB["Membuat model 3D (GLB) — TexturedCubeGlbGenerator — kubus 5 cm, tekstur 512 px"]
     GLB --> MDL["Tulis GLB ke filesDir/custom_models/uuid.glb"]
-    MDL --> DB["Insert CustomMotifEntity — id dan markerId memakai offset 1000"]
-    DB --> DONE["Bunyi sukses — popBackStack ke Koleksi"]
+    MDL --> DB["Menyimpan motif — insert CustomMotifEntity — id dan markerId memakai offset 1000"]
+    DB --> REG["Mendaftarkan ke detektor AR — registerDetectorTarget; ORB dihitung saat ini juga, referensi di-downscale maks. 1600 px"]
+    REG --> Q["Menyimpan soal kuis (bila dicentang) — batikId = combined id"]
+    Q --> DONE["Bunyi sukses — popBackStack ke Koleksi"]
     DONE --> AR["Motif langsung bisa dipindai di AR tanpa restart"]
 ```
 
@@ -288,7 +291,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    DET["Detail Screen — ikon pensil"] --> RUTE["Navigasi ke edit_motif/{batikId}"]
+    MG["Kelola Motif — tombol Edit"] --> RUTE["Navigasi ke edit_motif/{batikId}"]
     RUTE --> LOAD["MotifRepository — muat nilai saat ini, bawaan atau custom"]
     LOAD --> FORM["EditMotifScreen — nama, kategori, deskripsi singkat, makna, sejarah, foto"]
     FORM --> FILLED{"Kolom terisi?"}
@@ -374,7 +377,7 @@ stateDiagram-v2
 
 ### Skenario 5 — Mengedit Motif
 
-1. Buka **Detail** motif mana pun (bawaan atau buatan pengguna), lalu tekan ikon **pensil** di bilah atas.
+1. Dari **Koleksi**, buka **Kelola Motif**, lalu tekan **Edit** pada baris motif mana pun (bawaan atau buatan pengguna).
 2. Ubah nama, kategori, deskripsi singkat, makna, sejarah, dan/atau ganti foto. Kolom yang dibiarkan kosong tetap memakai nilai asli.
 3. Gulir ke bagian **Soal Kuis untuk Motif Ini**: tekan **Edit** pada salah satu baris untuk membuka layar Edit Soal, **Hapus** untuk menghapusnya (dialog konfirmasi), atau **Tambah Soal** untuk membuat soal baru dengan motif sudah terpilih otomatis.
 4. Tekan **Simpan**. Perubahan langsung terlihat di Detail, Koleksi, dan target deteksi AR, tanpa restart.
@@ -383,7 +386,7 @@ stateDiagram-v2
 
 ### Skenario 6 — Membuat Soal Kuis Sendiri
 
-1. Dari halaman Kuis, tekan ikon **+** pada bilah atas (dari kuis motif, motif sudah terpilih otomatis) — atau lewat **Tambah Soal** di layar Edit Motif.
+1. Dari **Koleksi → Kelola Soal Kuis**, tekan **Tambah Soal** — atau lewat **Tambah Soal** di layar Edit Motif (dari Kelola Motif).
 2. Pilih motif tujuan soal pada dropdown **Motif terkait** (wajib; berisi motif bawaan dan custom).
 3. Tulis pertanyaan.
 4. Isi tepat empat pilihan jawaban.
@@ -707,16 +710,26 @@ Saat ini **tidak ada motif bawaan** — seluruh koleksi dimulai dari nol dan dii
 
 Pengguna memilih foto melalui **Koleksi lalu Tambah Motif**. Alurnya:
 
-1. Foto disalin ke `filesDir/custom_images/<uuid>.jpg` dengan JPEG quality 90.
-2. `TexturedCubeGlbGenerator` membuat model kubus 5 cm bertekstur secara on-device, berupa glTF 2.0 atau GLB valid dengan 6 sisi, tekstur 512 px yang di-center-crop, JPEG quality 85, material `metallic 0.0` dan `roughness 0.8`, serta sampler repeat dengan linear-mipmapped.
-3. Keluarannya ditulis ke `filesDir/custom_models/<uuid>.glb`.
-4. Baris `CustomMotifEntity` ditambahkan ke Room.
+1. Foto dipilih lewat `ActivityResultContracts.GetContent`, lalu **rotasi EXIF diterapkan** (`decodePickedImage`) — foto tersimpan dalam orientasi yang sama seperti dilihat kamera di dunia nyata.
+2. Saat **Simpan Motif** ditekan, form diganti panel proses; tiap langkah di bawah ditampilkan satu per satu (`SaveStage`).
+3. Foto disalin ke `filesDir/custom_images/<uuid>.jpg` dengan JPEG quality 90.
+4. `TexturedCubeGlbGenerator` membuat model kubus 5 cm bertekstur secara on-device, berupa glTF 2.0/GLB valid dengan 6 sisi, tekstur 512 px yang di-center-crop, JPEG quality 85, material `metallic 0.0` dan `roughness 0.8`, serta sampler clamp dengan filtering linear satu tingkat (tanpa mipmap — mencegah kubus hitam di beberapa perangkat, sebab sampler mipmapped pada jalur tekstur embedded gltfio bisa me-render hitam); keluarannya ditulis ke `filesDir/custom_models/<uuid>.glb`.
+5. Baris `CustomMotifEntity` ditambahkan ke Room.
+6. Foto didaftarkan sebagai target deteksi AR **saat itu juga** (`MotifRepository.registerDetectorTarget`) — ORB dihitung sekali, dan referensi **di-downscale ke maks. 1600 px/sisi** agar sejalan dengan skala frame kamera.
+7. Bila bagian soal tercentang, soal kuis ditautkan ke `batikId` = combined id motif.
 
 Motif bawaan dan motif custom tidak akan pernah bentrok. Repository custom memakai offset ID `CUSTOM_ID_OFFSET = 1000` untuk kedua field, yaitu `id` maupun `markerId`.
 
+### Perbaikan otomatis kubus hitam (migrasi GLB legacy)
+
+GLB custom yang dibuat oleh generator generasi pertama memakai `minFilter 9987` (mipmapped). Pada jalur tekstur embedded gltfio, sampler yang meminta mipmap tetapi tidak mendapatkannya di-render sebagai **kubus hitam polos** di sebagian perangkat — terbukti di perangkat (A/B: GLB yang sama langsung menampilkan motif begitu `minFilter` di-flatten ke satu tingkat, 9729). Perbaikan dua lapis:
+
+1. **Generator kini menulis sampler satu tingkat** (`minFilter 9729`, tanpa mipmap) — motif baru selalu bertekstur.
+2. **Migrasi sekali-per-upgrade** (`JelajahBatikJambiApp` → `MotifRepository.repairLegacyCustomGlbs()`): pada peluncuran pertama setelah update, setiap GLB custom yang masih membawa sampler mipmapped (dideteksi lewat `render/GlbSampler.kt`, murni dan diuji di JVM) di-generate ulang dari foto sumber di `custom_images/` dengan generator yang sudah diperbaiki, lalu ditimpa secara atomik. Jadi aplikasi yang sudah terpasang "menyembuhkan diri" tanpa perlu meng-upload ulang motif atau operasi manual; berkas yang sudah benar (9728/9729) tidak disentuh.
+
 ### Mengedit motif dari aplikasi
 
-Detail punya ikon **pensil** yang membuka `edit_motif/{batikId}` untuk motif bawaan maupun custom. Cara kerjanya:
+**Kelola Motif** (dari Koleksi) membuka `edit_motif/{batikId}` untuk motif bawaan maupun custom — layar Detail dan Kuis tidak lagi punya akses edit. Cara kerjanya:
 
 1. Nilai saat ini dimuat dari `MotifRepository` dan mengisi form. Kolom yang dibiarkan kosong dianggap tidak diedit, sehingga nilai asli dipertahankan (`applyBatikOverride`).
 2. **Motif bawaan** ditulis sebagai baris di tabel overlay `batik_overrides` dengan `batikId` sebagai primary key — `assets/data/batik.json` tidak pernah diubah. `id` dan `markerId` tidak dapat diedit agar deteksi AR, `DiscoveryEntity`, dan kuis tetap konsisten.
@@ -728,13 +741,13 @@ Detail punya ikon **pensil** yang membuka `edit_motif/{batikId}` untuk motif baw
 
 ### Menghapus motif custom
 
-Tombol merah **Hapus Motif** hanya muncul untuk motif buatan pengguna **dan** hanya bila jumlah motif (bawaan + custom) lebih dari 1 — `EditMotifUiState.canDelete` menjaga aplikasi tidak pernah kehabisan motif. Setelah dialog konfirmasi, `MotifRepository.deleteCustomMotif()` meniadakan semuanya dalam satu berkas masuk:
+Tombol merah **Hapus Motif** (di layar Edit Motif maupun **Kelola Motif**) hanya muncul/aktif untuk motif buatan pengguna **dan** hanya bila jumlah motif (bawaan + custom) lebih dari 1 — `EditMotifUiState.canDelete` / `ManageMotifRow.canDelete` menjaga aplikasi tidak pernah kehabisan motif. Setelah dialog konfirmasi, `MotifRepository.deleteCustomMotif()` meniadakan semuanya dalam satu berkas masuk:
 
 1. Baris `custom_motifs` (dan otomatis seluruh override/identitas custom).
 2. Seluruh soal kuis terikat (`deleteByBatikId` pada `custom_quiz_questions`) — tidak ada soal yatim.
 3. Catatan penemuan (`deleteByBatikId` pada `discoveries`) — motif langsung hilang dari Koleksi.
 4. Berkas foto dan GLB — hanya dihapus bila berada di direktori upload milik aplikasi (`custom_images/`, `custom_models/`), aturan yang sama dengan reset foto edit.
-5. `ImageTargetDetector.removeReferenceImages()` di AR — foto motif berhenti menjadi target deteksi, dan `ArViewModel` membuang entri referensi usangnya.
+5. `removeDetectorReferenceImages()` pada detektor bersama (dimiliki `MotifRepository`) — foto motif berhenti menjadi target deteksi di sesi AR mana pun, dan `ArViewModel` membuang entri referensi usangnya.
 
 ---
 
@@ -757,20 +770,21 @@ Hasil edit motif bawaan disimpan sebagai berkas terpisah di `filesDir/edited_ima
 
 ## Navigasi
 
-**Sebelas rute**, ditransisikan dengan fade dan slide horizontal selama 200 ms.
+**Dua belas rute**, ditransisikan dengan fade dan slide horizontal selama 200 ms.
 
 | Rute | Layar | Tujuan |
 |---|---|---|
 | `home` | Home | Titik masuk: Mulai Jelajah, Koleksi Batik, Tentang |
 | `ar` | AR Scanner | Kamera dengan overlay 3D, mendasarui navigasi ke detail dan kuis |
-| `collection` | Koleksi | Daftar motif, mendasarui navigasi ke detail, kuis, dan tambah motif |
-| `detail/{batikId}` | Detail | Informasi lengkap satu motif, dengan ikon pensil ke `edit_motif` |
+| `collection` | Koleksi | Daftar motif, mendasarui navigasi ke detail, kuis, tambah motif, kelola motif, dan kelola soal kuis |
+| `detail/{batikId}` | Detail | Informasi lengkap satu motif (mode tampil saja — tanpa ikon edit, khusus kelola) |
 | `edit_motif/{batikId}` | Edit Motif | Form edit teks dan foto, kelola soal terkait, dan hapus motif custom |
 | `quiz?batikId={id}` | Kuis | `batikId` ada berarti kuis terfokus motif, tidak ada berarti kuis umum |
 | `create_quiz?batikId={id}` | Buat Soal | Menambah soal milik pengguna; `batikId` opsional untuk pre-select motif |
 | `manage_custom_quiz` | Kelola Soal Kuis | Daftar semua soal milik pengguna: edit, hapus, tambah |
 | `edit_quiz_question/{questionId}` | Edit Soal Kuis | Mengubah satu soal, termasuk motif terkaitnya |
 | `add_motif` | Tambah Motif | Menambah motif milik pengguna |
+| `manage_motifs` | Kelola Motif | Daftar semua motif (termasuk yang belum ditemukan): edit, hapus |
 | `about` | Tentang | Informasi aplikasi |
 
 Parameter opsional pada rute kuis dan buat soal memakai `defaultValue = -1` dan bukan `null`, karena `NavType.IntType` tidak dapat dideklarasikan nullable.

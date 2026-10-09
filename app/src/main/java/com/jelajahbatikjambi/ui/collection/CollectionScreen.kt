@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,13 +44,23 @@ import com.jelajahbatikjambi.ui.common.AssetImage
 import com.jelajahbatikjambi.ui.common.withClickSound
 import com.jelajahbatikjambi.ui.theme.Dimensions
 
+/**
+ * Kelola Koleksi is the single entry point for managing content: motif
+ * editing happens behind Kelola Motif (list icon) and quiz-question
+ * authoring (create/edit/delete) behind the Kelola Soal Kuis button below —
+ * neither is reachable from the play screens (Detail / Kuis) anymore
+ * (§ user request: "edit motif dan soal hanya bisa di akses lewat kelola
+ * koleksi").
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionScreen(
     onBack: () -> Unit,
     onViewDetail: (Int) -> Unit,
     onStartQuiz: () -> Unit,
-    onAddMotif: () -> Unit
+    onAddMotif: () -> Unit,
+    onManageMotifs: () -> Unit,
+    onManageQuiz: () -> Unit
 ) {
     val viewModel: CollectionViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -63,6 +75,9 @@ fun CollectionScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onManageMotifs.withClickSound()) {
+                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Kelola Motif")
+                    }
                     IconButton(onClick = onAddMotif.withClickSound()) {
                         Icon(Icons.Filled.Add, contentDescription = "Tambah Motif")
                     }
@@ -90,6 +105,15 @@ fun CollectionScreen(
                         .height(Dimensions.buttonHeight)
                 ) {
                     Text("Mulai Kuis")
+                }
+                Spacer(modifier = Modifier.height(Dimensions.spacingSm))
+                OutlinedButton(
+                    onClick = onManageQuiz.withClickSound(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(Dimensions.buttonHeight)
+                ) {
+                    Text("Kelola Soal Kuis")
                 }
             }
 
