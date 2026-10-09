@@ -1,5 +1,6 @@
 package com.jelajahbatikjambi.ui.managecustomquiz
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +65,7 @@ fun ManageCustomQuizScreen(
     val viewModel: ManageCustomQuizViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var questionToDelete by remember { mutableStateOf<CustomQuizQuestionEntity?>(null) }
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -103,6 +107,24 @@ fun ManageCustomQuizScreen(
                             onDelete = { questionToDelete = question }
                         )
                     }
+                    item {
+                        OutlinedButton(
+                            onClick = { showDeleteAllDialog = true }.withClickSound(),
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(Dimensions.spacingSm))
+                            Text("Hapus Semua Soal")
+                        }
+                    }
                 }
             }
         }
@@ -126,6 +148,34 @@ fun ManageCustomQuizScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { questionToDelete = null }) {
+                        Text("Batal")
+                    }
+                }
+            )
+        }
+
+        if (showDeleteAllDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAllDialog = false },
+                title = { Text("Hapus semua soal kuis?") },
+                text = {
+                    Text(
+                        "${uiState.questions.size} soal akan dihapus permanen. " +
+                            "Tindakan ini tidak bisa dibatalkan."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteAllQuestions()
+                            showDeleteAllDialog = false
+                        }
+                    ) {
+                        Text("Hapus Semua")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteAllDialog = false }) {
                         Text("Batal")
                     }
                 }

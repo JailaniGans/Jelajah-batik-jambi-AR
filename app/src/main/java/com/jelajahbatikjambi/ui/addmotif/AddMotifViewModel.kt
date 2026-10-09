@@ -24,8 +24,9 @@ data class AddMotifUiState(
     val name: String = "",
     val category: String = "",
     val shortDescription: String = "",
-    /** Optional "buat soal kuis untuk motif ini" section — off keeps the old add-motif-only flow. */
-    val createQuizQuestion: Boolean = false,
+    /** "Buat soal kuis untuk motif ini" section — on by default: a new motif
+     *  is exactly when the user writes its question. Unticking skips it. */
+    val createQuizQuestion: Boolean = true,
     val questionPrompt: String = "",
     val questionOptions: List<String> = listOf("", "", "", ""),
     val questionCorrectOptionIndex: Int = 0,
@@ -49,7 +50,9 @@ data class AddMotifUiState(
  * pointing at both files. [com.jelajahbatikjambi.ui.ar.ArViewModel] then picks
  * up the new motif automatically through its live Room Flow.
  *
- * When the optional "buat soal kuis" section is ticked, a
+ * The "buat soal kuis" section is ticked by default (the app has no bundled
+ * questions — the user writes them, naturally when registering a new motif);
+ * unticking it falls back to the add-motif-only flow. When ticked, a
  * [com.jelajahbatikjambi.database.CustomQuizQuestionEntity] keyed to the new
  * motif's combined id is written in the same coroutine — saved after the
  * motif, because the question needs that id, and in the same [runCatching] so

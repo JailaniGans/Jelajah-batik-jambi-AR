@@ -33,6 +33,9 @@ class CustomQuizRepository(private val dao: CustomQuizQuestionDao) {
     /** Deletes every question keyed to [batikId] — cascade used when a motif is deleted. */
     suspend fun deleteByBatikId(batikId: Int) = dao.deleteByBatikId(batikId)
 
+    /** Deletes every user-authored question — the quiz starts completely empty again. */
+    suspend fun deleteAllQuestions() = dao.deleteAll()
+
     suspend fun addQuestion(
         prompt: String,
         options: List<String>,

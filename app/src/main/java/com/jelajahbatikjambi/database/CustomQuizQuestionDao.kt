@@ -35,4 +35,8 @@ interface CustomQuizQuestionDao {
     /** Cascade for deleting a motif: its questions go with it, never left dangling. */
     @Query("DELETE FROM custom_quiz_questions WHERE batikId = :batikId")
     suspend fun deleteByBatikId(batikId: Int)
+
+    /** Empties the whole table — the "Hapus Semua Soal" action in the manage screen. */
+    @Query("DELETE FROM custom_quiz_questions")
+    suspend fun deleteAll()
 }

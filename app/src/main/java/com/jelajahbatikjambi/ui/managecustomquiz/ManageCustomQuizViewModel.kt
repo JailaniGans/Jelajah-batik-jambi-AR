@@ -59,4 +59,13 @@ class ManageCustomQuizViewModel(application: Application) : AndroidViewModel(app
             }
         }
     }
+
+    /** Clears every question at once (gone for good) — "Hapus Semua Soal". */
+    fun deleteAllQuestions() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                runCatching { repository.deleteAllQuestions() }
+            }
+        }
+    }
 }

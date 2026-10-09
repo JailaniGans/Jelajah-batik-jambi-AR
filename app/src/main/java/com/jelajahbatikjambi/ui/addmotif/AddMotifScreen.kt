@@ -194,11 +194,12 @@ private fun ImagePickerBox(previewBitmap: android.graphics.Bitmap?, onClick: () 
 }
 
 /**
- * Optional "buat soal kuis untuk motif ini" block on the add-motif form. The
- * checkbox keeps the old add-motif-only flow the default; ticking it reveals
- * the same prompt/options/correct-answer inputs as
- * [com.jelajahbatikjambi.ui.quiz.CreateQuizScreen], saved together with the
- * motif and keyed to it.
+ * "Buat soal kuis untuk motif ini" block on the add-motif form. The checkbox
+ * defaults to on — registering a new motif is when the user writes its quiz
+ * question — and unticking it collapses the section back to the
+ * add-motif-only flow. When shown, it's the same prompt/options/correct-answer
+ * inputs as [com.jelajahbatikjambi.ui.quiz.CreateQuizScreen], saved together
+ * with the motif and keyed to it.
  */
 @Composable
 private fun QuizQuestionSection(
