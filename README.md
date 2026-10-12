@@ -442,6 +442,26 @@ android.hardware.camera.autofocus (optional)
 
 Kamera ditandai **required**, sehingga aplikasi tidak dapat diinstal pada perangkat tanpa kamera.
 
+### Library yang Juga Dipakai di Ekosistem Unity
+
+Aplikasi ini **tidak memakai Unity** dan tidak memuat satu pun library bawaan Unity. Namun sebagian teknologi yang dipakai di sini juga muncul di proyek-proyek Unity — lewat plugin Asset Store atau package Unity terpisah. Tabel berikut memetakan kesamaan tersebut beserta perannya di aplikasi ini dan fitur mana yang memakainya.
+
+| Teknologi di proyek ini | Bentuk padanannya di Unity | Dipakai di sini untuk | Fitur terkait |
+|---|---|---|---|
+| **OpenCV** (`org.opencv:opencv`) | **OpenCV for Unity** (`OpenCVForUnity`, Enox Software) dari Asset Store | Deteksi motif: ORB, Lowe ratio test, RANSAC homography, dan `solvePnP` untuk estimasi pose | **Jelajah AR (Pemindai Motif)** — mencocokkan foto motif, pill "Motif ditemukan", dan objek 3D mengikuti motif |
+| **glTF 2.0 / `.glb`** (via Filament glTFIO) | **Unity glTFast** (`com.unity.cloud.gltfast`), **Khronos UnityGLTF** | Memuat model kubus bertekstur `.glb` melalui glTFIO milik Filament | **Jelajah AR** — render model 3D; **Tambah Motif** & **Edit Motif** — model dibuat on-device (`TexturedCubeGlbGenerator`) |
+| **Vulkan / OpenGL ES** | API grafis yang sama dipakai Unity di Android | Backend grafis Filament untuk menggambar overlay 3D di atas preview kamera | **Jelajah AR** — komposisi render 3D, animasi masuk model, gestur putar/geser/zoom |
+| **SQLite** (via Room) | Umumnya SQLite / `sqlite-net` di Unity | Mesin database di balik Room | **Koleksi Batik**, penemuan motif, motif custom, soal kuis |
+| **JSON** (`org.json`) | `Newtonsoft.Json` / `JsonUtility` di Unity | Parsing `assets/data/batik.json` | **Konten motif** (bawaan maupun yang disuntikkan developer) |
+| **Coroutines / async** | Coroutine Unity atau `UniTask` | Kotlin Coroutines untuk alur async dan `StateFlow` | **Seluruh alur data aplikasi** (AR, Koleksi, Detail, Kuis, Tambah/Edit Motif) |
+
+Catatan penting agar tidak menimbulkan salah paham:
+
+- Yang **benar-benar tumpang tindih** hanya **OpenCV** (library sama, binding berbeda) dan **format glTF/GLB** (loader berbeda: Filament glTFIO di sini, glTFast/UnityGLTF di Unity). Sisanya hanya kesamaan **kategori atau API**, bukan library yang sama.
+- **Tidak ada kesamaan engine fisika.** Unity memakai NVIDIA PhysX (fisika 3D) dan Box2D (fisika 2D); aplikasi ini **tidak memakai engine fisika apa pun**. Penempatan objek sepenuhnya matematika transform — quaternion menjadi matriks 4×4 di `render/TransformController.kt`, dengan pose dari `solvePnP` di `ar/PoseEstimator.kt`.
+- **Filament bukan bagian dari Unity.** Unity memakai renderer-nya sendiri (URP/HDRP/Built-in). Filament dipilih di sini karena ringan, langsung mendukung Android, dan mendukung glTF secara bawaan.
+- **CameraX, Jetpack Compose, Room, dan Kotlin tidak ada di Unity** (Unity memakai C#, `WebCamTexture`/AR Foundation, dan `UnityEngine.UI`/UI Toolkit).
+
 ---
 
 ## Persyaratan Sistem
